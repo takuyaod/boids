@@ -31,14 +31,18 @@ gh issue view <issue番号> --json number,title,body
 ### ブランチ名の生成ルール
 
 - フォーマット: `<issue番号>-<タイトルをケバブケースに変換>`
+- タイトルが日本語を含む場合は、**必ずClaude自身が英語に翻訳してからケバブケースに変換すること**
 - タイトルの変換:
-  - 日本語・英語ともに小文字化（英字の場合）
+  - 日本語タイトルは英語に翻訳する（例:「ボイドの衝突回避を実装する」→「implement-boid-collision-avoidance」）
+  - 英語に変換後、すべて小文字化
   - スペース・特殊文字はハイフン `-` に置換
   - 連続するハイフンは1つにまとめる
   - 先頭・末尾のハイフンは除去
   - 長すぎる場合は50文字程度に切り詰める
+- **ブランチ名に日本語（非ASCII文字）を含めてはならない**
 - 例: issue #42「Add user authentication」→ `42-add-user-authentication`
-- 例: issue #7「ボイドの衝突回避を実装する」→ `7-` + 変換後タイトル
+- 例: issue #7「ボイドの衝突回避を実装する」→ `7-implement-boid-collision-avoidance`
+- 例: issue #3「feat: PRレビュースキルと多角的レビューサブエージェントの実装」→ `3-feat-pr-review-skill-and-multi-perspective-subagents`
 
 ### ブランチ作成とチェックアウト
 
