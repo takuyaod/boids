@@ -9,8 +9,12 @@ import {
   SEPARATION_WEIGHT,
   ALIGNMENT_WEIGHT,
   COHESION_WEIGHT,
+  PREDATOR_FLEE_RADIUS,
+  PREDATOR_FLEE_WEIGHT,
+  PREDATOR_FLEE_MAX_FORCE,
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
+import type { Predator } from './Predator';
 
 export class Boid {
   x: number;
@@ -68,6 +72,18 @@ export class Boid {
     return limit(norm.x * MAX_SPEED - this.vx, norm.y * MAX_SPEED - this.vy, MAX_FORCE);
   }
 
+  // 逃避ルール：捕食者が近づいたら全力で逃げる
+  private flee(predator: Predator): Vec2 {
+    const dx = this.x - predator.x;
+    const dy = this.y - predator.y;
+    const dist = magnitude(dx, dy);
+    if (dist <= 0 || dist > PREDATOR_FLEE_RADIUS) return { x: 0, y: 0 };
+    // 捕食者が近づくほど逃避力を強める（距離に反比例）
+    const strength = (PREDATOR_FLEE_RADIUS - dist) / PREDATOR_FLEE_RADIUS;
+    const norm = normalize(dx, dy);
+    return limit(norm.x * MAX_SPEED - this.vx, norm.y * MAX_SPEED - this.vy, PREDATOR_FLEE_MAX_FORCE * strength);
+  }
+
   // 結合ルール：近くのBoidの重心に向かう
   private cohere(boids: Boid[]): Vec2 {
     let cx = 0, cy = 0, count = 0;
@@ -89,14 +105,15 @@ export class Boid {
   }
 
   // 位置・速度を更新する
-  update(boids: Boid[], width: number, height: number): void {
+  update(boids: Boid[], predator: Predator, width: number, height: number): void {
     const separation = this.separate(boids);
     const alignment = this.align(boids);
     const cohesion = this.cohere(boids);
+    const fleeForce = this.flee(predator);
 
-    // 各ルールの力を重み付けして加算
-    this.vx += separation.x * SEPARATION_WEIGHT + alignment.x * ALIGNMENT_WEIGHT + cohesion.x * COHESION_WEIGHT;
-    this.vy += separation.y * SEPARATION_WEIGHT + alignment.y * ALIGNMENT_WEIGHT + cohesion.y * COHESION_WEIGHT;
+    // 各ルールの力を重み付けして加算（逃避が最優先）
+    this.vx += separation.x * SEPARATION_WEIGHT + alignment.x * ALIGNMENT_WEIGHT + cohesion.x * COHESION_WEIGHT + fleeForce.x * PREDATOR_FLEE_WEIGHT;
+    this.vy += separation.y * SEPARATION_WEIGHT + alignment.y * ALIGNMENT_WEIGHT + cohesion.y * COHESION_WEIGHT + fleeForce.y * PREDATOR_FLEE_WEIGHT;
 
     const vel = limit(this.vx, this.vy, MAX_SPEED);
     this.vx = vel.x;
