@@ -51,6 +51,15 @@ export default function BoidsCanvas() {
       // 捕食者を更新
       predator.update(boids, canvas.width, canvas.height);
 
+      // 捕食範囲内のBoidを配列から除去
+      const eaten = new Set(predator.eat(boids, canvas.width, canvas.height));
+      if (eaten.size > 0) {
+        // 後ろから削除することでインデックスのずれを防ぐ
+        for (let i = boids.length - 1; i >= 0; i--) {
+          if (eaten.has(boids[i])) boids.splice(i, 1);
+        }
+      }
+
       // 各Boidを更新して描画
       for (const boid of boids) {
         boid.update(boids, predator, canvas.width, canvas.height);

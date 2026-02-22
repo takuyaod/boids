@@ -2,6 +2,7 @@ import { Boid } from './Boid';
 import {
   PREDATOR_SPEED,
   PREDATOR_MAX_FORCE,
+  PREDATOR_EAT_RADIUS,
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
 
@@ -52,6 +53,17 @@ export class Predator {
       norm.y * PREDATOR_SPEED - this.vy,
       PREDATOR_MAX_FORCE,
     );
+  }
+
+  // 捕食範囲内のBoidを返す（ラップアラウンド考慮）
+  eat(boids: Boid[], width: number, height: number): Boid[] {
+    return boids.filter((boid) => {
+      let dx = boid.x - this.x;
+      if (Math.abs(dx) > width / 2) dx -= Math.sign(dx) * width;
+      let dy = boid.y - this.y;
+      if (Math.abs(dy) > height / 2) dy -= Math.sign(dy) * height;
+      return magnitude(dx, dy) < PREDATOR_EAT_RADIUS;
+    });
   }
 
   // 位置・速度を更新する

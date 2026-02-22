@@ -153,6 +153,7 @@ export const PREDATOR_MAX_FORCE  = 0.05;     // 最大操舵力
 export const PREDATOR_FLEE_RADIUS    = 160;              // Boidが逃げ始める距離
 export const PREDATOR_FLEE_WEIGHT    = 3.5;              // 逃避力の重み
 export const PREDATOR_FLEE_MAX_FORCE = MAX_FORCE * 4;   // 逃避時の最大操舵力
+export const PREDATOR_EAT_RADIUS     = 15;               // 捕食判定の距離閾値
 
 // ── CRTエフェクトのパラメータ ─────────────────────────────────────────────
 
