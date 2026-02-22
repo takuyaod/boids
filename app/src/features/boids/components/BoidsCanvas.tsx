@@ -7,6 +7,7 @@ import { drawBoid } from '../lib/boidRenderer';
 import { drawPredator } from '../lib/predatorRenderer';
 import { CRTCache, createCRTCache, drawCRTOverlay } from '../lib/crt';
 import { BOID_COUNT } from '../lib/constants';
+import { spawnBoidsAtEdge } from '../lib/spawnUtils';
 
 export default function BoidsCanvas() {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -52,22 +53,14 @@ export default function BoidsCanvas() {
       predator.update(boids, canvas.width, canvas.height);
 
       // 捕食範囲内のBoidを配列から除去
-      const eaten = new Set(predator.eat(boids, canvas.width, canvas.height));
+      const eaten = predator.eat(boids, canvas.width, canvas.height);
       if (eaten.size > 0) {
         // 後ろから削除することでインデックスのずれを防ぐ
         for (let i = boids.length - 1; i >= 0; i--) {
           if (eaten.has(boids[i])) boids.splice(i, 1);
         }
         // 捕食された数だけ画面端に新しいBoidを再スポーン
-        for (let i = 0; i < eaten.size; i++) {
-          const edge = Math.floor(Math.random() * 4);
-          let nx: number, ny: number;
-          if (edge === 0)      { nx = Math.random() * canvas.width; ny = 0; }
-          else if (edge === 1) { nx = Math.random() * canvas.width; ny = canvas.height; }
-          else if (edge === 2) { nx = 0;            ny = Math.random() * canvas.height; }
-          else                 { nx = canvas.width; ny = Math.random() * canvas.height; }
-          boids.push(new Boid(nx, ny));
-        }
+        boids.push(...spawnBoidsAtEdge(eaten.size, canvas.width, canvas.height));
       }
 
       // 各Boidを更新して描画
