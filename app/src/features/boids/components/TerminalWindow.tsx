@@ -36,12 +36,12 @@ export default function TerminalWindow() {
             <div className="flex items-center gap-2 mt-0.5">
               <span className="text-[#00ff41]">❯</span>
               <span className="text-[#ddd]">
-                spawn --colony {BOID_COUNT} --predators {PREDATOR_COUNT}
+                spawn --creatures {BOID_COUNT} --sharks {PREDATOR_COUNT}
               </span>
             </div>
             {/* コマンドの出力 */}
             <div className="mt-1 text-[#666]">
-              Spawning {BOID_COUNT} aliens and {PREDATOR_COUNT} predator into sector 7...
+              Spawning {BOID_COUNT} ocean creatures and {PREDATOR_COUNT} shark into the depths...
             </div>
           </div>
 
@@ -55,11 +55,11 @@ export default function TerminalWindow() {
         <div className="px-4 py-2.5 bg-[#1a1a1a] border-t border-[#333] shrink-0 font-mono text-xs">
           <div className="flex gap-4 text-[#555]">
             <span>
-              aliens:{' '}
+              creatures:{' '}
               <span className="text-[#00ff41]">{BOID_COUNT}</span>
             </span>
             <span>
-              predator:{' '}
+              shark:{' '}
               <span className="text-[#ff2200]">{PREDATOR_COUNT}</span>
             </span>
           </div>
