@@ -1,7 +1,7 @@
 'use client';
 
-import React, { useEffect, useRef } from 'react';
-import type { SpeciesCounts } from './BoidsCanvas';
+import { useEffect, useRef } from 'react';
+import type { SpeciesCounts } from '../lib/speciesUtils';
 import {
   BoidSpecies,
   SPECIES_SPRITES,
@@ -39,6 +39,8 @@ function drawSpriteIcon(
   sprite: ReadonlyArray<ReadonlyArray<0 | 1>>,
   color: string
 ): void {
+  if (sprite.length === 0) return;
+
   ctx.clearRect(0, 0, ICON_CANVAS_SIZE, ICON_CANVAS_SIZE);
   ctx.fillStyle = color;
   ctx.shadowBlur = 6;
@@ -63,14 +65,12 @@ function drawSpriteIcon(
   }
 }
 
-// スプライトアイコンコンポーネント
-function SpriteIcon({
-  species,
-  isShark,
-}: {
-  species?: BoidSpecies;
-  isShark?: boolean;
-}) {
+// スプライトアイコンコンポーネント（species か isShark のどちらか一方を必須とする）
+type SpriteIconProps =
+  | { species: BoidSpecies; isShark?: never }
+  | { species?: never; isShark: true };
+
+function SpriteIcon({ species, isShark }: SpriteIconProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {

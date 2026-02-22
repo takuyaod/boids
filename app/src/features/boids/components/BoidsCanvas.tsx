@@ -6,11 +6,11 @@ import { Predator } from '../lib/Predator';
 import { drawBoid } from '../lib/boidRenderer';
 import { drawPredator } from '../lib/predatorRenderer';
 import { CRTCache, createCRTCache, drawCRTOverlay } from '../lib/crt';
-import { BOID_COUNT, BoidSpecies } from '../lib/constants';
+import { BOID_COUNT } from '../lib/constants';
 import { spawnBoidsAtEdge } from '../lib/spawnUtils';
+import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
 
-// 種別個体数の型定義
-export type SpeciesCounts = Record<BoidSpecies, number>;
+export type { SpeciesCounts };
 
 // Props 型定義
 type BoidsCanvasProps = {
@@ -19,9 +19,7 @@ type BoidsCanvasProps = {
 
 // 種別ごとの個体数を集計する
 function buildSpeciesCounts(boids: Boid[]): SpeciesCounts {
-  const counts = Object.fromEntries(
-    Object.values(BoidSpecies).map(s => [s, 0])
-  ) as SpeciesCounts;
+  const counts = createEmptySpeciesCounts();
   for (const boid of boids) {
     counts[boid.species]++;
   }
@@ -31,6 +29,12 @@ function buildSpeciesCounts(boids: Boid[]): SpeciesCounts {
 export default function BoidsCanvas({ onCountsUpdate }: BoidsCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // コールバックの最新参照を保持（アニメーションループの再起動を防ぐ）
+  const onCountsUpdateRef = useRef(onCountsUpdate);
+  useEffect(() => {
+    onCountsUpdateRef.current = onCountsUpdate;
+  }, [onCountsUpdate]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -97,9 +101,9 @@ export default function BoidsCanvas({ onCountsUpdate }: BoidsCanvasProps) {
 
       // 500ms ごとに種別ごとの個体数をカウントして通知
       const now = performance.now();
-      if (onCountsUpdate && now - lastCountUpdate >= 500) {
+      if (onCountsUpdateRef.current && now - lastCountUpdate >= 500) {
         lastCountUpdate = now;
-        onCountsUpdate(buildSpeciesCounts(boids));
+        onCountsUpdateRef.current(buildSpeciesCounts(boids));
       }
 
       animId = requestAnimationFrame(animate);
@@ -111,7 +115,7 @@ export default function BoidsCanvas({ onCountsUpdate }: BoidsCanvasProps) {
       resizeObserver.disconnect();
       cancelAnimationFrame(animId);
     };
-  }, [onCountsUpdate]);
+  }, []);
 
   return (
     <div ref={containerRef} className="relative w-full h-full">

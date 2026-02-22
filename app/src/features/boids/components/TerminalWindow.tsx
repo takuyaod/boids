@@ -1,19 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import BoidsCanvas, { type SpeciesCounts } from './BoidsCanvas';
+import BoidsCanvas from './BoidsCanvas';
 import PopulationPanel from './PopulationPanel';
-import { BOID_COUNT, PREDATOR_COUNT, BoidSpecies } from '../lib/constants';
-
-// 初期状態を生成する
-function initializeCounts(): SpeciesCounts {
-  return Object.fromEntries(
-    Object.values(BoidSpecies).map(s => [s, 0])
-  ) as SpeciesCounts;
-}
+import { BOID_COUNT, PREDATOR_COUNT } from '../lib/constants';
+import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
 
 export default function TerminalWindow() {
-  const [counts, setCounts] = useState<SpeciesCounts>(initializeCounts());
+  const [counts, setCounts] = useState<SpeciesCounts>(createEmptySpeciesCounts);
   return (
     // ページ全体：暗いグレー背景
     <div className="min-h-screen bg-[#111111] flex items-center justify-center p-4 sm:p-6 lg:p-8">
