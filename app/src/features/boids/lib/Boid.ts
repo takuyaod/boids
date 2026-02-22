@@ -1,6 +1,6 @@
+import { getRandomSpecies } from './speciesUtils';
 import {
-  NEON_COLORS,
-  NeonColor,
+  BoidSpecies,
   MAX_SPEED,
   MAX_FORCE,
   SEPARATION_RADIUS,
@@ -21,7 +21,7 @@ export class Boid {
   y: number;
   vx: number;
   vy: number;
-  color: NeonColor;
+  species: BoidSpecies;
 
   constructor(x: number, y: number) {
     this.x = x;
@@ -30,7 +30,8 @@ export class Boid {
     const angle = Math.random() * Math.PI * 2;
     this.vx = Math.cos(angle) * MAX_SPEED;
     this.vy = Math.sin(angle) * MAX_SPEED;
-    this.color = NEON_COLORS[Math.floor(Math.random() * NEON_COLORS.length)];
+    // 重み付きランダムで種を割り当て（イワシ多め）
+    this.species = getRandomSpecies();
   }
 
   // 分離ルール：近くのBoidから離れる
