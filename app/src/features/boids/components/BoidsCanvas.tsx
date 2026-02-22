@@ -8,10 +8,33 @@ import { drawPredator } from '../lib/predatorRenderer';
 import { CRTCache, createCRTCache, drawCRTOverlay } from '../lib/crt';
 import { BOID_COUNT } from '../lib/constants';
 import { spawnBoidsAtEdge } from '../lib/spawnUtils';
+import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
 
-export default function BoidsCanvas() {
+export type { SpeciesCounts };
+
+// Props 型定義
+type BoidsCanvasProps = {
+  onCountsUpdate?: (counts: SpeciesCounts) => void;
+};
+
+// 種別ごとの個体数を集計する
+function buildSpeciesCounts(boids: Boid[]): SpeciesCounts {
+  const counts = createEmptySpeciesCounts();
+  for (const boid of boids) {
+    counts[boid.species]++;
+  }
+  return counts;
+}
+
+export default function BoidsCanvas({ onCountsUpdate }: BoidsCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  // コールバックの最新参照を保持（アニメーションループの再起動を防ぐ）
+  const onCountsUpdateRef = useRef(onCountsUpdate);
+  useEffect(() => {
+    onCountsUpdateRef.current = onCountsUpdate;
+  }, [onCountsUpdate]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -43,6 +66,7 @@ export default function BoidsCanvas() {
     const predator = new Predator(canvas.width / 2, canvas.height / 2);
 
     let animId: number = 0;
+    let lastCountUpdate = 0;
 
     const animate = () => {
       // 背景を黒でクリア
@@ -74,6 +98,13 @@ export default function BoidsCanvas() {
 
       // CRTオーバーレイを重ねる
       drawCRTOverlay(ctx, crtCache, canvas.width, canvas.height);
+
+      // 500ms ごとに種別ごとの個体数をカウントして通知
+      const now = performance.now();
+      if (onCountsUpdateRef.current && now - lastCountUpdate >= 500) {
+        lastCountUpdate = now;
+        onCountsUpdateRef.current(buildSpeciesCounts(boids));
+      }
 
       animId = requestAnimationFrame(animate);
     };

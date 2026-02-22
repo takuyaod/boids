@@ -1,5 +1,15 @@
 import { BoidSpecies } from './constants';
 
+// 種別ごとの個体数を表す型
+export type SpeciesCounts = Record<BoidSpecies, number>;
+
+// 全種別のカウントが 0 の初期オブジェクトを生成する
+export function createEmptySpeciesCounts(): SpeciesCounts {
+  return Object.fromEntries(
+    Object.values(BoidSpecies).map(s => [s, 0])
+  ) as SpeciesCounts;
+}
+
 // ランダム割り当て時の重み（イワシを多めに）
 const SPECIES_WEIGHT_TABLE = [
   [BoidSpecies.Sardine,   35],

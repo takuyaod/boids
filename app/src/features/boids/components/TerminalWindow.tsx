@@ -1,7 +1,13 @@
+'use client';
+
+import { useState } from 'react';
 import BoidsCanvas from './BoidsCanvas';
+import PopulationPanel from './PopulationPanel';
 import { BOID_COUNT, PREDATOR_COUNT } from '../lib/constants';
+import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
 
 export default function TerminalWindow() {
+  const [counts, setCounts] = useState<SpeciesCounts>(createEmptySpeciesCounts);
   return (
     // ページ全体：暗いグレー背景
     <div className="min-h-screen bg-[#111111] flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -23,32 +29,38 @@ export default function TerminalWindow() {
         </div>
 
         {/* ── ターミナル本文 ── */}
-        <div className="flex-1 min-h-0 flex flex-col bg-[#0d0d0d]">
-          {/* プロンプト＋コマンド行：実際にコマンドを打った雰囲気 */}
-          <div className="px-4 pt-3 pb-2.5 border-b border-[#1e1e1e] shrink-0 font-mono text-xs leading-relaxed">
-            {/* プロンプト行 */}
-            <div className="flex items-center gap-2">
-              <span className="text-[#e8a046]">swarm</span>
-              <span className="text-[#888]">~/boids</span>
-              <span className="text-[#6eb3e8]">main ✦</span>
+        <div className="flex-1 min-h-0 flex flex-row bg-[#0d0d0d]">
+          {/* ── 左側：プロンプト + キャンバス ── */}
+          <div className="flex-1 min-h-0 flex flex-col">
+            {/* プロンプト＋コマンド行：実際にコマンドを打った雰囲気 */}
+            <div className="px-4 pt-3 pb-2.5 border-b border-[#1e1e1e] shrink-0 font-mono text-xs leading-relaxed">
+              {/* プロンプト行 */}
+              <div className="flex items-center gap-2">
+                <span className="text-[#e8a046]">swarm</span>
+                <span className="text-[#888]">~/boids</span>
+                <span className="text-[#6eb3e8]">main ✦</span>
+              </div>
+              {/* 入力されたコマンド */}
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className="text-[#00ff41]">❯</span>
+                <span className="text-[#ddd]">
+                  spawn --creatures {BOID_COUNT} --sharks {PREDATOR_COUNT}
+                </span>
+              </div>
+              {/* コマンドの出力 */}
+              <div className="mt-1 text-[#666]">
+                Spawning {BOID_COUNT} ocean creatures and {PREDATOR_COUNT} shark into the depths...
+              </div>
             </div>
-            {/* 入力されたコマンド */}
-            <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-[#00ff41]">❯</span>
-              <span className="text-[#ddd]">
-                spawn --creatures {BOID_COUNT} --sharks {PREDATOR_COUNT}
-              </span>
-            </div>
-            {/* コマンドの出力 */}
-            <div className="mt-1 text-[#666]">
-              Spawning {BOID_COUNT} ocean creatures and {PREDATOR_COUNT} shark into the depths...
+
+            {/* キャンバスエリア */}
+            <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
+              <BoidsCanvas onCountsUpdate={setCounts} />
             </div>
           </div>
 
-          {/* キャンバスエリア */}
-          <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
-            <BoidsCanvas />
-          </div>
+          {/* ── 右側：POPULATION HUD パネル ── */}
+          <PopulationPanel counts={counts} sharkCount={PREDATOR_COUNT} />
         </div>
 
         {/* ── フッター：ステータス ── */}
