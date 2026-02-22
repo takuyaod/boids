@@ -3,13 +3,16 @@
 import { useState } from 'react';
 import BoidsCanvas from './BoidsCanvas';
 import PopulationPanel from './PopulationPanel';
-import { BOID_COUNT, PREDATOR_COUNT } from '../lib/constants';
+import ParamsPanel from './ParamsPanel';
+import { PREDATOR_COUNT, DEFAULT_SIM_PARAMS, type SimParams } from '../lib/constants';
 import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
 import { type RendererType } from '../lib/renderer';
 
 export default function TerminalWindow() {
   const [counts, setCounts] = useState<SpeciesCounts>(createEmptySpeciesCounts);
   const [rendererType, setRendererType] = useState<RendererType | null>(null);
+  const [simParams, setSimParams] = useState<SimParams>(DEFAULT_SIM_PARAMS);
+
   return (
     // ページ全体：暗いグレー背景
     <div className="min-h-screen bg-[#111111] flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -46,23 +49,30 @@ export default function TerminalWindow() {
               <div className="flex items-center gap-2 mt-0.5">
                 <span className="text-[#00ff41]">❯</span>
                 <span className="text-[#ddd]">
-                  spawn --creatures {BOID_COUNT} --sharks {PREDATOR_COUNT}
+                  spawn --creatures {simParams.boidCount} --sharks {PREDATOR_COUNT}
                 </span>
               </div>
               {/* コマンドの出力 */}
               <div className="mt-1 text-[#666]">
-                Spawning {BOID_COUNT} ocean creatures and {PREDATOR_COUNT} shark into the depths...
+                Spawning {simParams.boidCount} ocean creatures and {PREDATOR_COUNT} shark into the depths...
               </div>
             </div>
 
             {/* キャンバスエリア */}
             <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
-              <BoidsCanvas onCountsUpdate={setCounts} onRendererReady={setRendererType} />
+              <BoidsCanvas
+                onCountsUpdate={setCounts}
+                onRendererReady={setRendererType}
+                params={simParams}
+              />
             </div>
           </div>
 
-          {/* ── 右側：POPULATION HUD パネル ── */}
-          <PopulationPanel counts={counts} sharkCount={PREDATOR_COUNT} />
+          {/* ── 右側：POPULATION + PARAMS サイドバー ── */}
+          <div className="w-44 shrink-0 border-l border-[#333] flex flex-col min-h-0">
+            <PopulationPanel counts={counts} sharkCount={PREDATOR_COUNT} />
+            <ParamsPanel params={simParams} onChange={setSimParams} />
+          </div>
         </div>
 
         {/* ── フッター：ステータス ── */}
@@ -70,7 +80,7 @@ export default function TerminalWindow() {
           <div className="flex gap-4 text-[#555]">
             <span>
               creatures:{' '}
-              <span className="text-[#00ff41]">{BOID_COUNT}</span>
+              <span className="text-[#00ff41]">{simParams.boidCount}</span>
             </span>
             <span>
               sharks:{' '}

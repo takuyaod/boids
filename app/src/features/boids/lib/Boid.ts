@@ -2,7 +2,6 @@ import { getRandomSpecies } from './speciesUtils';
 import {
   BoidSpecies,
   MAX_SPEED,
-  MAX_FORCE,
   SEPARATION_RADIUS,
   ALIGNMENT_RADIUS,
   COHESION_RADIUS,
@@ -11,7 +10,7 @@ import {
   COHESION_WEIGHT,
   PREDATOR_FLEE_RADIUS,
   PREDATOR_FLEE_WEIGHT,
-  PREDATOR_FLEE_MAX_FORCE,
+  PREDATOR_FLEE_FORCE_SCALE,
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
 import type { Predator } from './Predator';
@@ -26,7 +25,7 @@ export class Boid {
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
-    // ランダムな初期速度を設定
+    // 初期速度は定数 MAX_SPEED を使用（スポーン時点では動的パラメータを参照しない設計）
     const angle = Math.random() * Math.PI * 2;
     this.vx = Math.cos(angle) * MAX_SPEED;
     this.vy = Math.sin(angle) * MAX_SPEED;
@@ -35,7 +34,7 @@ export class Boid {
   }
 
   // 分離ルール：近くのBoidから離れる
-  private separate(boids: Boid[]): Vec2 {
+  private separate(boids: Boid[], maxSpeed: number, maxForce: number): Vec2 {
     let sx = 0, sy = 0, count = 0;
     for (const other of boids) {
       if (other === this) continue;
@@ -51,11 +50,11 @@ export class Boid {
     }
     if (count === 0) return { x: 0, y: 0 };
     const norm = normalize(sx / count, sy / count);
-    return limit(norm.x * MAX_SPEED - this.vx, norm.y * MAX_SPEED - this.vy, MAX_FORCE);
+    return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce);
   }
 
   // 整列ルール：近くのBoidの進行方向に合わせる
-  private align(boids: Boid[]): Vec2 {
+  private align(boids: Boid[], maxSpeed: number, maxForce: number): Vec2 {
     let avx = 0, avy = 0, count = 0;
     for (const other of boids) {
       if (other === this) continue;
@@ -70,11 +69,11 @@ export class Boid {
     }
     if (count === 0) return { x: 0, y: 0 };
     const norm = normalize(avx / count, avy / count);
-    return limit(norm.x * MAX_SPEED - this.vx, norm.y * MAX_SPEED - this.vy, MAX_FORCE);
+    return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce);
   }
 
   // 逃避ルール：捕食者が近づいたら全力で逃げる（ラップアラウンド考慮）
-  private flee(predator: Predator, width: number, height: number): Vec2 {
+  private flee(predator: Predator, width: number, height: number, maxSpeed: number, maxForce: number): Vec2 {
     let dx = this.x - predator.x;
     if (Math.abs(dx) > width / 2) dx -= Math.sign(dx) * width;
     let dy = this.y - predator.y;
@@ -84,11 +83,11 @@ export class Boid {
     // 捕食者が近づくほど逃避力を強める（距離に反比例）
     const strength = (PREDATOR_FLEE_RADIUS - dist) / PREDATOR_FLEE_RADIUS;
     const norm = normalize(dx, dy);
-    return limit(norm.x * MAX_SPEED - this.vx, norm.y * MAX_SPEED - this.vy, PREDATOR_FLEE_MAX_FORCE * strength);
+    return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce * PREDATOR_FLEE_FORCE_SCALE * strength);
   }
 
   // 結合ルール：近くのBoidの重心に向かう
-  private cohere(boids: Boid[]): Vec2 {
+  private cohere(boids: Boid[], maxSpeed: number, maxForce: number): Vec2 {
     let cx = 0, cy = 0, count = 0;
     for (const other of boids) {
       if (other === this) continue;
@@ -104,21 +103,21 @@ export class Boid {
     if (count === 0) return { x: 0, y: 0 };
     // 重心へのベクトルを求める
     const norm = normalize(cx / count - this.x, cy / count - this.y);
-    return limit(norm.x * MAX_SPEED - this.vx, norm.y * MAX_SPEED - this.vy, MAX_FORCE);
+    return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce);
   }
 
   // 位置・速度を更新する
-  update(boids: Boid[], predator: Predator, width: number, height: number): void {
-    const separation = this.separate(boids);
-    const alignment = this.align(boids);
-    const cohesion = this.cohere(boids);
-    const fleeForce = this.flee(predator, width, height);
+  update(boids: Boid[], predator: Predator, width: number, height: number, maxSpeed: number, maxForce: number): void {
+    const separation = this.separate(boids, maxSpeed, maxForce);
+    const alignment = this.align(boids, maxSpeed, maxForce);
+    const cohesion = this.cohere(boids, maxSpeed, maxForce);
+    const fleeForce = this.flee(predator, width, height, maxSpeed, maxForce);
 
     // 各ルールの力を重み付けして加算（逃避が最優先）
     this.vx += separation.x * SEPARATION_WEIGHT + alignment.x * ALIGNMENT_WEIGHT + cohesion.x * COHESION_WEIGHT + fleeForce.x * PREDATOR_FLEE_WEIGHT;
     this.vy += separation.y * SEPARATION_WEIGHT + alignment.y * ALIGNMENT_WEIGHT + cohesion.y * COHESION_WEIGHT + fleeForce.y * PREDATOR_FLEE_WEIGHT;
 
-    const vel = limit(this.vx, this.vy, MAX_SPEED);
+    const vel = limit(this.vx, this.vy, maxSpeed);
     this.vx = vel.x;
     this.vy = vel.y;
 

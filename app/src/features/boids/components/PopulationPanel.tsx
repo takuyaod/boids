@@ -103,7 +103,7 @@ export default function PopulationPanel({
   sharkCount,
 }: PopulationPanelProps) {
   return (
-    <div className="w-44 shrink-0 border-l border-[#333] font-mono text-xs bg-[#0d0d0d] flex flex-col">
+    <div className="font-mono text-xs bg-[#0d0d0d] flex flex-col flex-1 min-h-0">
       {/* ヘッダー */}
       <div className="px-3 py-2 border-b border-[#333] text-[#555]">
         ┌─ POPULATION ─

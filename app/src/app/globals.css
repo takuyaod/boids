@@ -18,6 +18,18 @@ body {
   overflow: hidden;
 }
 
+/*
+ * ParamsPanel の SliderRow 専用スタイル
+ * globals.css に置く理由: Tailwind の Arbitrary variants では
+ * ::-webkit-slider-thumb 等の擬似要素の background-color を制御できないため
+ */
+input[type="range"]::-webkit-slider-thumb {
+  background-color: var(--thumb-color, #fff);
+}
+input[type="range"]::-moz-range-thumb {
+  background-color: var(--thumb-color, #fff);
+}
+
 /* CRTモニター風のグロウエフェクト */
 canvas {
   display: block;
