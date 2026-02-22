@@ -21,8 +21,9 @@ export function drawBoid(ctx: CanvasRenderingContext2D, boid: Boid): void {
 
   // ピクセルアートを1マスずつ描画
   for (let row = 0; row < sprite.length; row++) {
-    for (let col = 0; col < sprite[row].length; col++) {
-      if (sprite[row][col] === 1) {
+    const rowData = sprite[row];
+    for (let col = 0; col < rowData.length; col++) {
+      if (rowData[col] === 1) {
         ctx.fillRect(
           offsetX + col * pixelSize,
           offsetY + row * pixelSize,

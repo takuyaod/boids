@@ -107,7 +107,7 @@ export const SPECIES_SPRITES: Record<BoidSpecies, ReadonlyArray<ReadonlyArray<0 
 };
 
 // ネオンカラー（CRTモニター発光風）
-export const SPECIES_COLORS: Record<BoidSpecies, string> = {
+export const SPECIES_COLORS: Record<BoidSpecies, `#${string}`> = {
   [BoidSpecies.Sardine]:   '#88ccff', // 銀青（イワシの鱗）
   [BoidSpecies.Squid]:     '#dd66ff', // 紫（イカの体色）
   [BoidSpecies.Octopus]:   '#ff8833', // オレンジ（タコの体色）
@@ -127,28 +127,6 @@ export const SPECIES_PIXEL_SIZES: Record<BoidSpecies, number> = {
   [BoidSpecies.Jellyfish]: 3,
   [BoidSpecies.Manta]:     4, // 大型で優雅
 };
-
-// ランダム割り当て時の重み（イワシを多めに）
-const SPECIES_WEIGHT_TABLE: Array<[BoidSpecies, number]> = [
-  [BoidSpecies.Sardine,   35],
-  [BoidSpecies.Squid,     15],
-  [BoidSpecies.Octopus,   10],
-  [BoidSpecies.Crab,      10],
-  [BoidSpecies.SeaTurtle, 10],
-  [BoidSpecies.Jellyfish, 10],
-  [BoidSpecies.Manta,     10],
-];
-
-// 重み付きランダムで種を選ぶ
-export function getRandomSpecies(): BoidSpecies {
-  const total = SPECIES_WEIGHT_TABLE.reduce((sum, [, w]) => sum + w, 0);
-  let r = Math.random() * total;
-  for (const [species, weight] of SPECIES_WEIGHT_TABLE) {
-    r -= weight;
-    if (r <= 0) return species;
-  }
-  return BoidSpecies.Sardine; // フォールバック
-}
 
 // ── シミュレーション定数 ──────────────────────────────────────────────────
 

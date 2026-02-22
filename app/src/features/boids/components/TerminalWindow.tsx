@@ -59,7 +59,7 @@ export default function TerminalWindow() {
               <span className="text-[#00ff41]">{BOID_COUNT}</span>
             </span>
             <span>
-              shark:{' '}
+              sharks:{' '}
               <span className="text-[#ff2200]">{PREDATOR_COUNT}</span>
             </span>
           </div>

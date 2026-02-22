@@ -1,6 +1,6 @@
+import { getRandomSpecies } from './speciesUtils';
 import {
   BoidSpecies,
-  getRandomSpecies,
   MAX_SPEED,
   MAX_FORCE,
   SEPARATION_RADIUS,
