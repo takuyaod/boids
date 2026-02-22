@@ -5,9 +5,11 @@ import BoidsCanvas from './BoidsCanvas';
 import PopulationPanel from './PopulationPanel';
 import { BOID_COUNT, PREDATOR_COUNT } from '../lib/constants';
 import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
+import { type RendererType } from '../lib/renderer';
 
 export default function TerminalWindow() {
   const [counts, setCounts] = useState<SpeciesCounts>(createEmptySpeciesCounts);
+  const [rendererType, setRendererType] = useState<RendererType | null>(null);
   return (
     // ページ全体：暗いグレー背景
     <div className="min-h-screen bg-[#111111] flex items-center justify-center p-4 sm:p-6 lg:p-8">
@@ -55,7 +57,7 @@ export default function TerminalWindow() {
 
             {/* キャンバスエリア */}
             <div className="flex-1 min-h-0 relative overflow-hidden bg-black">
-              <BoidsCanvas onCountsUpdate={setCounts} />
+              <BoidsCanvas onCountsUpdate={setCounts} onRendererReady={setRendererType} />
             </div>
           </div>
 
@@ -73,6 +75,18 @@ export default function TerminalWindow() {
             <span>
               sharks:{' '}
               <span className="text-[#ff2200]">{PREDATOR_COUNT}</span>
+            </span>
+            <span>
+              renderer:{' '}
+              {rendererType === 'webgpu' && (
+                <span className="text-[#6eb3e8]">WebGPU</span>
+              )}
+              {rendererType === 'canvas2d' && (
+                <span className="text-[#ffbd2e]">Canvas 2D</span>
+              )}
+              {rendererType === null && (
+                <span className="text-[#444]">...</span>
+              )}
             </span>
           </div>
         </div>
