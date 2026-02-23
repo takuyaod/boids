@@ -2,15 +2,11 @@ import { getRandomSpecies } from './speciesUtils';
 import {
   BoidSpecies,
   MAX_SPEED,
-  SEPARATION_RADIUS,
-  ALIGNMENT_RADIUS,
-  COHESION_RADIUS,
-  SEPARATION_WEIGHT,
-  ALIGNMENT_WEIGHT,
-  COHESION_WEIGHT,
+  MAX_FORCE,
   PREDATOR_FLEE_RADIUS,
-  PREDATOR_FLEE_WEIGHT,
   PREDATOR_FLEE_FORCE_SCALE,
+  SPECIES_PARAMS,
+  type SpeciesParams,
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
 import type { Predator } from './Predator';
@@ -21,6 +17,8 @@ export class Boid {
   vx: number;
   vy: number;
   species: BoidSpecies;
+  // 種固有パラメータをキャッシュ（this.species は不変なため、毎フレームの SPECIES_PARAMS ルックアップを排除）
+  private readonly params: SpeciesParams;
 
   constructor(x: number, y: number) {
     this.x = x;
@@ -31,20 +29,24 @@ export class Boid {
     this.vy = Math.sin(angle) * MAX_SPEED;
     // 重み付きランダムで種を割り当て（イワシ多め）
     this.species = getRandomSpecies();
+    this.params = SPECIES_PARAMS[this.species];
   }
 
-  // 分離ルール：近くのBoidから離れる
+  // 分離ルール：近くのBoidから離れる（種固有の分離半径を使用、全種に対して適用）
   private separate(boids: Boid[], maxSpeed: number, maxForce: number): Vec2 {
+    const { separationRadius } = this.params;
     let sx = 0, sy = 0, count = 0;
     for (const other of boids) {
       if (other === this) continue;
       const dx = this.x - other.x;
       const dy = this.y - other.y;
       const dist = magnitude(dx, dy);
-      if (dist > 0 && dist < SEPARATION_RADIUS) {
+      if (dist > 0 && dist < separationRadius) {
         // 距離に反比例した反発力を計算
         sx += (dx / dist) / dist;
         sy += (dy / dist) / dist;
+        // 分離は全種を等しく扱うため totalWeight ではなく count を使用
+        // （align/cohere と異なり intraSpeciesBias による重み付けを行わない）
         count++;
       }
     }
@@ -53,22 +55,25 @@ export class Boid {
     return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce);
   }
 
-  // 整列ルール：近くのBoidの進行方向に合わせる
+  // 整列ルール：近くのBoidの進行方向に合わせる（同種ボイドを intraSpeciesBias 倍で優先）
   private align(boids: Boid[], maxSpeed: number, maxForce: number): Vec2 {
-    let avx = 0, avy = 0, count = 0;
+    const { alignmentRadius, intraSpeciesBias } = this.params;
+    let avx = 0, avy = 0, totalWeight = 0;
     for (const other of boids) {
       if (other === this) continue;
       const dx = this.x - other.x;
       const dy = this.y - other.y;
       const dist = magnitude(dx, dy);
-      if (dist > 0 && dist < ALIGNMENT_RADIUS) {
-        avx += other.vx;
-        avy += other.vy;
-        count++;
+      if (dist > 0 && dist < alignmentRadius) {
+        // 同種のボイドにはバイアス倍率を適用し、優先的に整列する
+        const bias = other.species === this.species ? intraSpeciesBias : 1.0;
+        avx += other.vx * bias;
+        avy += other.vy * bias;
+        totalWeight += bias;
       }
     }
-    if (count === 0) return { x: 0, y: 0 };
-    const norm = normalize(avx / count, avy / count);
+    if (totalWeight === 0) return { x: 0, y: 0 };
+    const norm = normalize(avx / totalWeight, avy / totalWeight);
     return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce);
   }
 
@@ -86,38 +91,53 @@ export class Boid {
     return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce * PREDATOR_FLEE_FORCE_SCALE * strength);
   }
 
-  // 結合ルール：近くのBoidの重心に向かう
+  // 結合ルール：近くのBoidの重心に向かう（同種ボイドを intraSpeciesBias 倍で優先）
   private cohere(boids: Boid[], maxSpeed: number, maxForce: number): Vec2 {
-    let cx = 0, cy = 0, count = 0;
+    const { cohesionRadius, intraSpeciesBias } = this.params;
+    let cx = 0, cy = 0, totalWeight = 0;
     for (const other of boids) {
       if (other === this) continue;
       const dx = this.x - other.x;
       const dy = this.y - other.y;
       const dist = magnitude(dx, dy);
-      if (dist > 0 && dist < COHESION_RADIUS) {
-        cx += other.x;
-        cy += other.y;
-        count++;
+      if (dist > 0 && dist < cohesionRadius) {
+        // 同種のボイドにはバイアス倍率を適用し、優先的に凝集する
+        const bias = other.species === this.species ? intraSpeciesBias : 1.0;
+        cx += other.x * bias;
+        cy += other.y * bias;
+        totalWeight += bias;
       }
     }
-    if (count === 0) return { x: 0, y: 0 };
+    if (totalWeight === 0) return { x: 0, y: 0 };
     // 重心へのベクトルを求める
-    const norm = normalize(cx / count - this.x, cy / count - this.y);
+    const norm = normalize(cx / totalWeight - this.x, cy / totalWeight - this.y);
     return limit(norm.x * maxSpeed - this.vx, norm.y * maxSpeed - this.vy, maxForce);
   }
 
   // 位置・速度を更新する
   update(boids: Boid[], predator: Predator, width: number, height: number, maxSpeed: number, maxForce: number): void {
-    const separation = this.separate(boids, maxSpeed, maxForce);
-    const alignment = this.align(boids, maxSpeed, maxForce);
-    const cohesion = this.cohere(boids, maxSpeed, maxForce);
-    const fleeForce = this.flee(predator, width, height, maxSpeed, maxForce);
+    const params = this.params;
+    // グローバルの SimParams を比率として種固有パラメータにスケール適用
+    // （SimParams スライダーで全種を一括調整しつつ、種間の相対差を保持する）
+    const effectiveMaxSpeed = params.maxSpeed * (maxSpeed / MAX_SPEED);
+    const effectiveMaxForce = params.maxForce * (maxForce / MAX_FORCE);
 
-    // 各ルールの力を重み付けして加算（逃避が最優先）
-    this.vx += separation.x * SEPARATION_WEIGHT + alignment.x * ALIGNMENT_WEIGHT + cohesion.x * COHESION_WEIGHT + fleeForce.x * PREDATOR_FLEE_WEIGHT;
-    this.vy += separation.y * SEPARATION_WEIGHT + alignment.y * ALIGNMENT_WEIGHT + cohesion.y * COHESION_WEIGHT + fleeForce.y * PREDATOR_FLEE_WEIGHT;
+    const separation = this.separate(boids, effectiveMaxSpeed, effectiveMaxForce);
+    const alignment  = this.align(boids, effectiveMaxSpeed, effectiveMaxForce);
+    const cohesion   = this.cohere(boids, effectiveMaxSpeed, effectiveMaxForce);
+    const fleeForce  = this.flee(predator, width, height, effectiveMaxSpeed, effectiveMaxForce);
 
-    const vel = limit(this.vx, this.vy, maxSpeed);
+    // 種固有の重みで各ルールの力を加算（逃避が最優先）
+    this.vx += separation.x * params.separationWeight
+             + alignment.x  * params.alignmentWeight
+             + cohesion.x   * params.cohesionWeight
+             + fleeForce.x  * params.fleeWeight;
+    this.vy += separation.y * params.separationWeight
+             + alignment.y  * params.alignmentWeight
+             + cohesion.y   * params.cohesionWeight
+             + fleeForce.y  * params.fleeWeight;
+
+    const vel = limit(this.vx, this.vy, effectiveMaxSpeed);
     this.vx = vel.x;
     this.vy = vel.y;
 
