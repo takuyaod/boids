@@ -1,8 +1,10 @@
 import { Boid } from './Boid';
 import {
+  BoidSpecies,
   PREDATOR_SPEED,
   PREDATOR_MAX_FORCE,
   PREDATOR_EAT_RADIUS,
+  PREDATOR_STUN_DURATION_MS,
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
 
@@ -22,15 +24,23 @@ export class Predator {
   vy: number;
   // 満腹度（外部からの書き込みを防ぐためプライベートフィールド + ゲッターで管理）
   private _satiety: number;
+  // しびれ終了時刻（performance.now() ベース。0 = しびれなし）
+  private _stunnedUntil: number;
 
   get satiety(): number {
     return this._satiety;
+  }
+
+  // 現在しびれ状態かどうか
+  get isStunned(): boolean {
+    return performance.now() < this._stunnedUntil;
   }
 
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
     this._satiety = 0;
+    this._stunnedUntil = 0;
     // 初期速度は定数 PREDATOR_SPEED を使用（スポーン時点では動的パラメータを参照しない設計）
     const angle = Math.random() * Math.PI * 2;
     this.vx = Math.cos(angle) * PREDATOR_SPEED;
@@ -97,6 +107,7 @@ export class Predator {
     height: number,
     satietyParams: SatietyParams,
   ): Set<Boid> {
+    const now = performance.now();
     const { speedupThreshold, overfedThreshold, satietyDecayRate, speedBoost, speedPenalty } = satietyParams;
 
     // 満腹度に基づく速度倍率を計算
@@ -114,22 +125,38 @@ export class Predator {
     const effectiveMaxForce = PREDATOR_MAX_FORCE * speedMultiplier;
 
     // 1回の走査で追尾力と捕食対象を計算（chase/eat の重複計算を統合）
+    // しびれ中も捕食スキャンは実行する（停止中にクラゲと接触した場合も満腹度を増加し、しびれ時間をリセットする仕様）
     const { steer, eaten } = this.scanBoids(boids, width, height, effectiveSpeed, effectiveMaxForce);
-    this.vx += steer.x;
-    this.vy += steer.y;
 
-    const vel = limit(this.vx, this.vy, effectiveSpeed);
-    this.vx = vel.x;
-    this.vy = vel.y;
+    // クラゲを捕食したらしびれ状態にする（既にしびれ中でも時間をリセット）
+    for (const boid of eaten) {
+      if (boid.species === BoidSpecies.Jellyfish) {
+        this._stunnedUntil = now + PREDATOR_STUN_DURATION_MS;
+        break;
+      }
+    }
 
-    this.x += this.vx;
-    this.y += this.vy;
+    if (now < this._stunnedUntil) {
+      // しびれ中は速度をゼロにして移動しない
+      this.vx = 0;
+      this.vy = 0;
+    } else {
+      this.vx += steer.x;
+      this.vy += steer.y;
 
-    // 画面端でラップアラウンド
-    if (this.x < 0) this.x += width;
-    if (this.x > width) this.x -= width;
-    if (this.y < 0) this.y += height;
-    if (this.y > height) this.y -= height;
+      const vel = limit(this.vx, this.vy, effectiveSpeed);
+      this.vx = vel.x;
+      this.vy = vel.y;
+
+      this.x += this.vx;
+      this.y += this.vy;
+
+      // 画面端でラップアラウンド
+      if (this.x < 0) this.x += width;
+      if (this.x > width) this.x -= width;
+      if (this.y < 0) this.y += height;
+      if (this.y > height) this.y -= height;
+    }
 
     // 捕食した数だけ満腹度を増加
     this._satiety += eaten.size;

@@ -9,6 +9,11 @@ import {
   SHARK_SPRITE,
   PREDATOR_PIXEL_SIZE,
   PREDATOR_COLOR,
+  PREDATOR_STUN_COLOR,
+  PREDATOR_STUN_DOT_COUNT,
+  PREDATOR_STUN_DOT_ORBIT,
+  PREDATOR_STUN_DOT_RADIUS,
+  PREDATOR_STUN_ORBIT_WOBBLE,
   CRT_SCANLINE_INTERVAL,
   CRT_SCANLINE_OPACITY,
   CRT_VIGNETTE_INNER_RADIUS,
@@ -54,6 +59,12 @@ const SPECIES_PIXEL_OFFSETS: Record<BoidSpecies, PixelOffset[]> = Object.fromEnt
 ) as Record<BoidSpecies, PixelOffset[]>;
 
 const SHARK_PIXEL_OFFSETS = computeFilledPixels(SHARK_SPRITE, PREDATOR_PIXEL_SIZE);
+
+// しびれドット用：オフセット(0,0)の1点スプライト
+const STUN_DOT_PIXEL_OFFSETS: PixelOffset[] = [{ ox: 0, oy: 0 }];
+
+// しびれエフェクトのドット色をモジュール初期化時に1回だけ変換してキャッシュ
+const STUN_DOT_RGB = hexToRgb(PREDATOR_STUN_COLOR);
 
 // ────── バッファレイアウト定数 ─────────────────────────────────────────────
 
@@ -335,6 +346,7 @@ export class WebGPURenderer implements BoidsRenderer {
       r: number,
       g: number,
       b: number,
+      alpha = 1.0,
     ): void => {
       const cosA = Math.cos(angle);
       const sinA = Math.sin(angle);
@@ -349,12 +361,11 @@ export class WebGPURenderer implements BoidsRenderer {
         const wx = cx + cosA * ox - sinA * oy;
         const wy = cy + sinA * ox + cosA * oy;
 
-        // 通常サイズで不透明に描画（Canvas2D と同等）
         const ci = instanceCount * INSTANCE_FLOATS;
         this.instanceData[ci]     = wx;
         this.instanceData[ci + 1] = wy;
         this.instanceData[ci + 2] = halfSize;
-        this.instanceData[ci + 3] = 1.0;
+        this.instanceData[ci + 3] = alpha;
         this.instanceData[ci + 4] = r;
         this.instanceData[ci + 5] = g;
         this.instanceData[ci + 6] = b;
@@ -377,6 +388,23 @@ export class WebGPURenderer implements BoidsRenderer {
       const [r, g, b] = hexToRgb(PREDATOR_COLOR);
       const angle = Math.atan2(predator.vy, predator.vx) + Math.PI / 2;
       addSprite(predator.x, predator.y, angle, SHARK_PIXEL_OFFSETS, halfSize, r, g, b);
+    }
+
+    // しびれ中は黄色ドットエフェクトを描画
+    if (predator.isStunned) {
+      const now = performance.now();
+      const [dr, dg, db] = STUN_DOT_RGB;
+      // sin 波による点滅（0.7〜1.0 の範囲でアルファを変化）
+      const blink = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(now * 0.01));
+      for (let i = 0; i < PREDATOR_STUN_DOT_COUNT; i++) {
+        // フレームごとに回転し、各ドットを等間隔に配置
+        const angle = now * 0.003 + (i * Math.PI * 2) / PREDATOR_STUN_DOT_COUNT;
+        // 振動で軌道半径をわずかに変化させてしびれ感を演出
+        const orbit = PREDATOR_STUN_DOT_ORBIT + PREDATOR_STUN_ORBIT_WOBBLE * Math.sin(now * 0.008 + i);
+        const dotX  = predator.x + Math.cos(angle) * orbit;
+        const dotY  = predator.y + Math.sin(angle) * orbit;
+        addSprite(dotX, dotY, 0, STUN_DOT_PIXEL_OFFSETS, PREDATOR_STUN_DOT_RADIUS, dr, dg, db, blink);
+      }
     }
 
     const { device } = this;
