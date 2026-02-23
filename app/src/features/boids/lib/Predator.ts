@@ -6,17 +6,31 @@ import {
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
 
+// 満腹度システムのパラメータ型（update() の引数を型安全にまとめる）
+export type SatietyParams = {
+  speedupThreshold: number;
+  overfedThreshold: number;
+  satietyDecayRate: number;
+  speedBoost: number;
+  speedPenalty: number;
+};
+
 export class Predator {
   x: number;
   y: number;
   vx: number;
   vy: number;
-  // 満腹度（捕食するたびに増加し、時間経過で自然減少する）
-  satiety: number = 0;
+  // 満腹度（外部からの書き込みを防ぐためプライベートフィールド + ゲッターで管理）
+  private _satiety: number;
+
+  get satiety(): number {
+    return this._satiety;
+  }
 
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
+    this._satiety = 0;
     // 初期速度は定数 PREDATOR_SPEED を使用（スポーン時点では動的パラメータを参照しない設計）
     const angle = Math.random() * Math.PI * 2;
     this.vx = Math.cos(angle) * PREDATOR_SPEED;
@@ -32,74 +46,75 @@ export class Predator {
     return { x: dx, y: dy };
   }
 
-  // 最も近いBoidに向かって追尾するステアリング力を計算（ラップアラウンド考慮）
-  private chase(boids: Boid[], width: number, height: number, effectiveSpeed: number, effectiveMaxForce: number): Vec2 {
-    if (boids.length === 0) return { x: 0, y: 0 };
+  // 1回の走査で最も近いBoidへの追尾力と捕食対象を同時に計算する（重複距離計算を排除）
+  private scanBoids(
+    boids: Boid[],
+    width: number,
+    height: number,
+    effectiveSpeed: number,
+    effectiveMaxForce: number,
+  ): { steer: Vec2; eaten: Set<Boid> } {
+    if (boids.length === 0) return { steer: { x: 0, y: 0 }, eaten: new Set() };
 
-    // 最も近いBoidを探す（画面端をまたぐ最短経路で距離を測る）
     let nearest: Boid | null = null;
+    let nearestDelta: Vec2 = { x: 0, y: 0 };
     let minDist = Infinity;
+    const eaten = new Set<Boid>();
+
     for (const boid of boids) {
       const delta = this.wrappedDelta(boid, width, height);
       const dist = magnitude(delta.x, delta.y);
+      // 最も近いBoidを追跡（最近傍探索）
       if (dist < minDist) {
         minDist = dist;
         nearest = boid;
+        nearestDelta = delta;
       }
-    }
-
-    if (!nearest) return { x: 0, y: 0 };
-
-    // 目標に向かうステアリング力を計算（ラップアラウンド考慮の最短方向）
-    const delta = this.wrappedDelta(nearest, width, height);
-    const norm = normalize(delta.x, delta.y);
-    return limit(
-      norm.x * effectiveSpeed - this.vx,
-      norm.y * effectiveSpeed - this.vy,
-      effectiveMaxForce,
-    );
-  }
-
-  // 捕食範囲内のBoidをSetで返し、満腹度を増加させる（ラップアラウンド考慮）
-  eat(boids: Boid[], width: number, height: number): Set<Boid> {
-    const eaten = new Set<Boid>();
-    for (const boid of boids) {
-      const delta = this.wrappedDelta(boid, width, height);
-      if (magnitude(delta.x, delta.y) < PREDATOR_EAT_RADIUS) {
+      // 捕食範囲内のBoidを収集
+      if (dist < PREDATOR_EAT_RADIUS) {
         eaten.add(boid);
       }
     }
-    // 捕食した数だけ満腹度を増加
-    this.satiety += eaten.size;
-    return eaten;
+
+    let steer: Vec2 = { x: 0, y: 0 };
+    if (nearest) {
+      // 目標に向かうステアリング力を計算（ラップアラウンド考慮の最短方向）
+      const norm = normalize(nearestDelta.x, nearestDelta.y);
+      steer = limit(
+        norm.x * effectiveSpeed - this.vx,
+        norm.y * effectiveSpeed - this.vy,
+        effectiveMaxForce,
+      );
+    }
+
+    return { steer, eaten };
   }
 
-  // 位置・速度を更新する（満腹度に基づく速度動的変化）
+  // 位置・速度を更新し、捕食されたBoidの集合を返す（満腹度に基づく速度動的変化）
   update(
     boids: Boid[],
     width: number,
     height: number,
-    speedupThreshold: number,
-    overfedThreshold: number,
-    satietyDecayRate: number,
-    speedBoost: number,
-    speedPenalty: number,
-  ): void {
+    satietyParams: SatietyParams,
+  ): Set<Boid> {
+    const { speedupThreshold, overfedThreshold, satietyDecayRate, speedBoost, speedPenalty } = satietyParams;
+
     // 満腹度に基づく速度倍率を計算
     // overfedThreshold 以上 → お腹いっぱいで鈍化
     // speedupThreshold 以上 → 興奮状態でスピードアップ
     // それ以外 → 通常速度
     let speedMultiplier = 1.0;
-    if (this.satiety >= overfedThreshold) {
+    if (this._satiety >= overfedThreshold) {
       speedMultiplier = speedPenalty;
-    } else if (this.satiety >= speedupThreshold) {
+    } else if (this._satiety >= speedupThreshold) {
       speedMultiplier = speedBoost;
     }
 
     const effectiveSpeed    = PREDATOR_SPEED    * speedMultiplier;
     const effectiveMaxForce = PREDATOR_MAX_FORCE * speedMultiplier;
 
-    const steer = this.chase(boids, width, height, effectiveSpeed, effectiveMaxForce);
+    // 1回の走査で追尾力と捕食対象を計算（chase/eat の重複計算を統合）
+    const { steer, eaten } = this.scanBoids(boids, width, height, effectiveSpeed, effectiveMaxForce);
     this.vx += steer.x;
     this.vy += steer.y;
 
@@ -116,7 +131,11 @@ export class Predator {
     if (this.y < 0) this.y += height;
     if (this.y > height) this.y -= height;
 
+    // 捕食した数だけ満腹度を増加
+    this._satiety += eaten.size;
     // 満腹度を自然減少（最小値は 0）
-    this.satiety = Math.max(0, this.satiety - satietyDecayRate);
+    this._satiety = Math.max(0, this._satiety - satietyDecayRate);
+
+    return eaten;
   }
 }

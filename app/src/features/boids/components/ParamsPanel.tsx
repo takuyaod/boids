@@ -1,11 +1,13 @@
 'use client';
 
+import { memo } from 'react';
 import type { SimParams } from '../lib/constants';
 
 type ParamsPanelProps = {
   params: SimParams;
   onChange: (params: SimParams) => void;
-  satiety?: number;
+  // 読み取り専用の状態表示（操作UIとモニタリング表示を型で明示）
+  readonlyStats?: { satiety: number };
 };
 
 // スライダー1行分のコンポーネント
@@ -41,7 +43,9 @@ function SliderRow({ label, value, min, max, step, color, display, onChange }: S
   );
 }
 
-export default function ParamsPanel({ params, onChange, satiety = 0 }: ParamsPanelProps) {
+const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats }: ParamsPanelProps) {
+  const satiety = readonlyStats?.satiety ?? 0;
+
   return (
     <div className="font-mono text-xs bg-[#0d0d0d] flex flex-col border-t border-[#333]">
       {/* ヘッダー */}
@@ -95,55 +99,69 @@ export default function ParamsPanel({ params, onChange, satiety = 0 }: ParamsPan
 
         <SliderRow
           label="speedup_threshold"
-          value={params.speedupThreshold}
+          value={params.predatorSpeedupThreshold}
           min={1}
           max={15}
           step={1}
           color="#ff6600"
-          display={String(params.speedupThreshold)}
-          onChange={(v) => onChange({ ...params, speedupThreshold: v })}
+          display={String(params.predatorSpeedupThreshold)}
+          onChange={(v) => {
+            // speedupThreshold が overfedThreshold 以上にならないよう連動して調整
+            const newOverfed = v >= params.predatorOverfedThreshold
+              ? v + 1
+              : params.predatorOverfedThreshold;
+            onChange({ ...params, predatorSpeedupThreshold: v, predatorOverfedThreshold: newOverfed });
+          }}
         />
         <SliderRow
           label="overfed_threshold"
-          value={params.overfedThreshold}
+          value={params.predatorOverfedThreshold}
           min={2}
           max={20}
           step={1}
           color="#ff6600"
-          display={String(params.overfedThreshold)}
-          onChange={(v) => onChange({ ...params, overfedThreshold: v })}
+          display={String(params.predatorOverfedThreshold)}
+          onChange={(v) => {
+            // overfedThreshold が speedupThreshold 以下にならないよう連動して調整
+            const newSpeedup = v <= params.predatorSpeedupThreshold
+              ? v - 1
+              : params.predatorSpeedupThreshold;
+            onChange({ ...params, predatorOverfedThreshold: v, predatorSpeedupThreshold: newSpeedup });
+          }}
         />
         <SliderRow
-          label="satiety_decay"
-          value={params.satietyDecayRate}
+          label="satiety_decay_rate"
+          value={params.predatorSatietyDecayRate}
           min={0.001}
           max={0.020}
           step={0.001}
           color="#ff6600"
-          display={params.satietyDecayRate.toFixed(3)}
-          onChange={(v) => onChange({ ...params, satietyDecayRate: v })}
+          display={params.predatorSatietyDecayRate.toFixed(3)}
+          onChange={(v) => onChange({ ...params, predatorSatietyDecayRate: v })}
         />
         <SliderRow
           label="speed_boost"
-          value={params.speedBoost}
+          value={params.predatorSpeedBoost}
           min={1.0}
           max={3.0}
           step={0.1}
           color="#ff6600"
-          display={params.speedBoost.toFixed(1)}
-          onChange={(v) => onChange({ ...params, speedBoost: v })}
+          display={params.predatorSpeedBoost.toFixed(1)}
+          onChange={(v) => onChange({ ...params, predatorSpeedBoost: v })}
         />
         <SliderRow
           label="speed_penalty"
-          value={params.speedPenalty}
+          value={params.predatorSpeedPenalty}
           min={0.1}
           max={0.9}
           step={0.1}
           color="#ff6600"
-          display={params.speedPenalty.toFixed(1)}
-          onChange={(v) => onChange({ ...params, speedPenalty: v })}
+          display={params.predatorSpeedPenalty.toFixed(1)}
+          onChange={(v) => onChange({ ...params, predatorSpeedPenalty: v })}
         />
       </div>
     </div>
   );
-}
+});
+
+export default ParamsPanel;

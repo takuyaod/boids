@@ -73,7 +73,7 @@ export default function TerminalWindow() {
           {/* ── 右側：POPULATION + PARAMS サイドバー ── */}
           <div className="w-44 shrink-0 border-l border-[#333] flex flex-col min-h-0">
             <PopulationPanel counts={counts} sharkCount={PREDATOR_COUNT} />
-            <ParamsPanel params={simParams} onChange={setSimParams} satiety={satiety} />
+            <ParamsPanel params={simParams} onChange={setSimParams} readonlyStats={{ satiety }} />
           </div>
         </div>
 

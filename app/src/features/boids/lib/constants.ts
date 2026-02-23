@@ -157,7 +157,7 @@ export const PREDATOR_EAT_RADIUS       = 15;  // 捕食判定の距離閾値
 
 // 満腹度システムのデフォルト値
 export const PREDATOR_SPEEDUP_THRESHOLD = 3;     // スピードアップが始まる捕食数
-export const PREDATOR_OVERFED_THRESHOLD  = 8;    // スピードダウンが始まる捕食数
+export const PREDATOR_OVERFED_THRESHOLD = 8;    // スピードダウンが始まる捕食数
 export const PREDATOR_SATIETY_DECAY_RATE = 0.003; // フレームあたりの満腹度自然減少量
 export const PREDATOR_SPEED_BOOST        = 1.5;  // スピードアップ時の速度倍率
 export const PREDATOR_SPEED_PENALTY      = 0.5;  // スピードダウン時の速度倍率
@@ -168,22 +168,22 @@ export type SimParams = {
   boidCount: number;
   maxSpeed: number;
   maxForce: number;
-  speedupThreshold: number;
-  overfedThreshold: number;
-  satietyDecayRate: number;
-  speedBoost: number;
-  speedPenalty: number;
+  predatorSpeedupThreshold: number;
+  predatorOverfedThreshold: number;
+  predatorSatietyDecayRate: number;
+  predatorSpeedBoost: number;
+  predatorSpeedPenalty: number;
 };
 
 export const DEFAULT_SIM_PARAMS: SimParams = {
   boidCount: BOID_COUNT,
   maxSpeed: MAX_SPEED,
   maxForce: MAX_FORCE,
-  speedupThreshold: PREDATOR_SPEEDUP_THRESHOLD,
-  overfedThreshold: PREDATOR_OVERFED_THRESHOLD,
-  satietyDecayRate: PREDATOR_SATIETY_DECAY_RATE,
-  speedBoost: PREDATOR_SPEED_BOOST,
-  speedPenalty: PREDATOR_SPEED_PENALTY,
+  predatorSpeedupThreshold: PREDATOR_SPEEDUP_THRESHOLD,
+  predatorOverfedThreshold: PREDATOR_OVERFED_THRESHOLD,
+  predatorSatietyDecayRate: PREDATOR_SATIETY_DECAY_RATE,
+  predatorSpeedBoost: PREDATOR_SPEED_BOOST,
+  predatorSpeedPenalty: PREDATOR_SPEED_PENALTY,
 };
 
 // ── CRTエフェクトのパラメータ ─────────────────────────────────────────────

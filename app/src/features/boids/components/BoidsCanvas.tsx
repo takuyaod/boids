@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { Boid } from '../lib/Boid';
-import { Predator } from '../lib/Predator';
+import { Predator, type SatietyParams } from '../lib/Predator';
 import { type SimParams, DEFAULT_SIM_PARAMS } from '../lib/constants';
 import { spawnBoidsAtEdge } from '../lib/spawnUtils';
 import { type SpeciesCounts, createEmptySpeciesCounts } from '../lib/speciesUtils';
@@ -102,20 +102,15 @@ export default function BoidsCanvas({ onCountsUpdate, onRendererReady, onSatiety
           boids.splice(p.boidCount);
         }
 
-        // 捕食者を更新（満腹度システムのパラメータを渡す）
-        predator.update(
-          boids,
-          canvas.width,
-          canvas.height,
-          p.speedupThreshold,
-          p.overfedThreshold,
-          p.satietyDecayRate,
-          p.speedBoost,
-          p.speedPenalty,
-        );
-
-        // 捕食範囲内の Boid を配列から除去
-        const eaten = predator.eat(boids, canvas.width, canvas.height);
+        // 捕食者を更新し、捕食されたBoidを取得（1回の走査で追尾と捕食を処理）
+        const satietyParams: SatietyParams = {
+          speedupThreshold: p.predatorSpeedupThreshold,
+          overfedThreshold: p.predatorOverfedThreshold,
+          satietyDecayRate: p.predatorSatietyDecayRate,
+          speedBoost: p.predatorSpeedBoost,
+          speedPenalty: p.predatorSpeedPenalty,
+        };
+        const eaten = predator.update(boids, canvas.width, canvas.height, satietyParams);
         if (eaten.size > 0) {
           // 後ろから削除することでインデックスのずれを防ぐ
           for (let i = boids.length - 1; i >= 0; i--) {
