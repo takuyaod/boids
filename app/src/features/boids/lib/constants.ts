@@ -131,18 +131,92 @@ export const SPECIES_PIXEL_SIZES: Record<BoidSpecies, number> = {
 // ── シミュレーション定数 ──────────────────────────────────────────────────
 
 export const BOID_COUNT = 60;  // Boidの総数
-export const MAX_SPEED = 2.0;  // 最大速度
-export const MAX_FORCE = 0.04; // 最大操舵力
+export const MAX_SPEED = 2.0;  // デフォルト最大速度（種固有パラメータのスケール基準）
+export const MAX_FORCE = 0.04; // デフォルト最大操舵力（種固有パラメータのスケール基準）
 
-// 近傍範囲
+// デフォルト近傍範囲（種固有パラメータがない場合のフォールバック）
 export const SEPARATION_RADIUS = 35;
 export const ALIGNMENT_RADIUS  = 75;
 export const COHESION_RADIUS   = 75;
 
-// 各ルールの重み
+// デフォルト重み（種固有パラメータがない場合のフォールバック）
 export const SEPARATION_WEIGHT = 1.8;
 export const ALIGNMENT_WEIGHT  = 1.0;
 export const COHESION_WEIGHT   = 1.0;
+
+// ── 種固有のフロッキングパラメータ ───────────────────────────────────────
+
+export type SpeciesParams = {
+  maxSpeed: number;          // 最大速度
+  maxForce: number;          // 最大操舵力
+  separationRadius: number;  // 分離ルールの近傍半径
+  separationWeight: number;  // 分離ルールの重み
+  alignmentRadius: number;   // 整列ルールの近傍半径
+  alignmentWeight: number;   // 整列ルールの重み
+  cohesionRadius: number;    // 凝集ルールの近傍半径
+  cohesionWeight: number;    // 凝集ルールの重み
+  fleeWeight: number;        // 捕食者逃避の重み
+  intraSpeciesBias: number;  // 同種ボイドへの整列・凝集の優先度倍率（1.0 = バイアスなし）
+};
+
+export const SPECIES_PARAMS: Record<BoidSpecies, SpeciesParams> = {
+  // イワシ：密集したスクールを形成する小型魚
+  [BoidSpecies.Sardine]: {
+    maxSpeed: 2.0,   maxForce: 0.06,
+    separationRadius: 28,  separationWeight: 1.8,
+    alignmentRadius: 65,   alignmentWeight: 1.2,
+    cohesionRadius: 65,    cohesionWeight: 1.5,
+    fleeWeight: 4.5,       intraSpeciesBias: 8.0,
+  },
+  // イカ：小グループで行動する中型の頭足類
+  [BoidSpecies.Squid]: {
+    maxSpeed: 2.2,   maxForce: 0.04,
+    separationRadius: 40,  separationWeight: 1.5,
+    alignmentRadius: 60,   alignmentWeight: 0.7,
+    cohesionRadius: 60,    cohesionWeight: 0.7,
+    fleeWeight: 3.0,       intraSpeciesBias: 3.0,
+  },
+  // タコ：孤立傾向が強い知性的な頭足類
+  [BoidSpecies.Octopus]: {
+    maxSpeed: 1.5,   maxForce: 0.03,
+    separationRadius: 65,  separationWeight: 2.5,
+    alignmentRadius: 50,   alignmentWeight: 0.15,
+    cohesionRadius: 50,    cohesionWeight: 0.1,
+    fleeWeight: 2.5,       intraSpeciesBias: 0.3,
+  },
+  // カニ：ゆっくりと移動する甲殻類
+  [BoidSpecies.Crab]: {
+    maxSpeed: 1.3,   maxForce: 0.03,
+    separationRadius: 35,  separationWeight: 1.5,
+    alignmentRadius: 50,   alignmentWeight: 0.5,
+    cohesionRadius: 50,    cohesionWeight: 0.6,
+    fleeWeight: 2.0,       intraSpeciesBias: 2.0,
+  },
+  // ウミガメ：独立行動で長距離を移動する爬虫類
+  [BoidSpecies.SeaTurtle]: {
+    maxSpeed: 1.4,   maxForce: 0.025,
+    separationRadius: 50,  separationWeight: 1.2,
+    alignmentRadius: 90,   alignmentWeight: 0.5,
+    cohesionRadius: 90,    cohesionWeight: 0.4,
+    fleeWeight: 1.5,       intraSpeciesBias: 1.5,
+  },
+  // クラゲ：受動的に漂う刺胞動物（捕食者をほぼ無視）
+  [BoidSpecies.Jellyfish]: {
+    maxSpeed: 0.9,   maxForce: 0.02,
+    separationRadius: 45,  separationWeight: 0.8,
+    alignmentRadius: 55,   alignmentWeight: 0.15,
+    cohesionRadius: 55,    cohesionWeight: 0.15,
+    fleeWeight: 0.5,       intraSpeciesBias: 1.0,
+  },
+  // マンタ：広い整列範囲で緩やかなループを描く大型魚
+  [BoidSpecies.Manta]: {
+    maxSpeed: 2.5,   maxForce: 0.03,
+    separationRadius: 70,  separationWeight: 1.5,
+    alignmentRadius: 130,  alignmentWeight: 1.0,
+    cohesionRadius: 130,   cohesionWeight: 0.6,
+    fleeWeight: 2.5,       intraSpeciesBias: 2.0,
+  },
+};
 
 // 捕食者（サメ）定数
 export const PREDATOR_COUNT      = 1;        // 捕食者の数
