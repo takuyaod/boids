@@ -67,6 +67,7 @@ export class Predator {
     height: number,
     effectiveSpeed: number,
     effectiveMaxForce: number,
+    skipJellyfish: boolean,
   ): { steer: Vec2; eaten: Set<Boid> } {
     if (boids.length === 0) return { steer: { x: 0, y: 0 }, eaten: new Set() };
 
@@ -76,6 +77,8 @@ export class Predator {
     const eaten = new Set<Boid>();
 
     for (const boid of boids) {
+      // クールダウン中はクラゲをスキップ（per-frame filter 生成を避けるためループ内で判定）
+      if (skipJellyfish && boid.species === BoidSpecies.Jellyfish) continue;
       const delta = this.wrappedDelta(boid, width, height);
       const dist = magnitude(delta.x, delta.y);
       // 最も近いBoidを追跡（最近傍探索）
@@ -128,14 +131,11 @@ export class Predator {
     const effectiveSpeed    = PREDATOR_SPEED    * speedMultiplier;
     const effectiveMaxForce = PREDATOR_MAX_FORCE * speedMultiplier;
 
-    // クールダウン中はクラゲを追跡・捕食対象から除外する
-    const activeBoids = now < this._jellyfishCooldownUntil
-      ? boids.filter(b => b.species !== BoidSpecies.Jellyfish)
-      : boids;
-
     // 1回の走査で追尾力と捕食対象を計算（chase/eat の重複計算を統合）
     // しびれ中も捕食スキャンは実行する（停止中にクラゲと接触した場合もしびれ時間をリセットする仕様）
-    const { steer, eaten } = this.scanBoids(activeBoids, width, height, effectiveSpeed, effectiveMaxForce);
+    // クールダウン中はクラゲをスキャン内でスキップ（per-frame filter 生成によるGC圧を回避）
+    const skipJellyfish = now < this._jellyfishCooldownUntil;
+    const { steer, eaten } = this.scanBoids(boids, width, height, effectiveSpeed, effectiveMaxForce, skipJellyfish);
 
     // クラゲを捕食したらしびれ状態とクールダウンをセット（満腹度は加算しない）
     for (const boid of eaten) {

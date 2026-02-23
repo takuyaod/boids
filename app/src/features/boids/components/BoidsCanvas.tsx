@@ -119,7 +119,7 @@ export default function BoidsCanvas({ onCountsUpdate, onRendererReady, onSatiety
           // 捕食された数だけ画面端に新しい Boid を再スポーン（種別バランスを考慮）
           const currentCounts = buildSpeciesCounts(boids);
           for (let i = 0; i < eaten.size; i++) {
-            const species = getSpawnSpecies(currentCounts, boids.length + i);
+            const species = getSpawnSpecies(currentCounts, boids.length + i); // boids.length + i = スポーン完了後の総数を予測
             currentCounts[species]++;
             boids.push(spawnBoidAtEdge(species, canvas.width, canvas.height));
           }

@@ -44,7 +44,7 @@ const MAX_SARDINE_RATIO = 0.5;
 // 優先度：① 2体未満の種 → ② イワシ上限チェック → ③ 通常の重み付きランダム
 export function getSpawnSpecies(currentCounts: SpeciesCounts, totalBoids: number): BoidSpecies {
   // ① 最低個体数を下回る種があれば優先スポーン
-  const endangered = Object.values(BoidSpecies).filter(s => currentCounts[s] < MIN_SPECIES_COUNT);
+  const endangered = (Object.values(BoidSpecies) as BoidSpecies[]).filter(s => currentCounts[s] < MIN_SPECIES_COUNT);
   if (endangered.length > 0) {
     return endangered[Math.floor(Math.random() * endangered.length)];
   }
@@ -59,6 +59,7 @@ export function getSpawnSpecies(currentCounts: SpeciesCounts, totalBoids: number
       r -= weight;
       if (r <= 0) return species;
     }
+    // filteredTable は常に全種別（イワシを除く）を含むため空にならない
     return filteredTable[filteredTable.length - 1][0];
   }
 
