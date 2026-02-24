@@ -73,8 +73,8 @@ const STUN_DOT_PIXEL_OFFSETS: PixelOffset[] = [{ ox: 0, oy: 0 }];
 const STUN_DOT_RGB = hexToRgb(PREDATOR_STUN_COLOR);
 // 混乱エフェクトのドット色
 const CONFUSION_DOT_RGB = hexToRgb(PREDATOR_CONFUSION_COLOR);
-// スミ雲色（Canvas2D の rgba(90,90,90) に合わせた暗い灰色）
-const INK_CLOUD_RGB: [number, number, number] = [90 / 255, 90 / 255, 90 / 255];
+// スミ雲色（boidRenderer.ts の rgba(160,140,180) に合わせた薄紫がかったグレー）
+const INK_CLOUD_RGB: [number, number, number] = [160 / 255, 140 / 255, 180 / 255];
 
 // ────── バッファレイアウト定数 ─────────────────────────────────────────────
 
@@ -183,7 +183,7 @@ fn fs_main(@builtin(position) pos: vec4f) -> @location(0) vec4f {
 }
 `;
 
-// スミ雲シェーダー（円形 SDF で中心が濃く端が透明になるグラデーション）
+// スミ雲シェーダー（ドットグリッドパターン、boidRenderer.ts と同じ見た目）
 const INK_CLOUD_SHADER = /* wgsl */ `
 struct Uniforms {
   screen_size: vec2f,
@@ -196,6 +196,8 @@ struct VertexOut {
   @location(0) uv: vec2f,
   @location(1) color: vec3f,
   @location(2) alpha: f32,
+  @location(3) radius: f32,
+  @location(4) center: vec2f,
 }
 
 @vertex
@@ -218,16 +220,50 @@ fn vs_main(
   out.uv = uv;
   out.color = color;
   out.alpha = size_alpha.y;
+  out.radius = radius;
+  out.center = center;
   return out;
+}
+
+// グリッドセル座標とクラウド中心を組み合わせた決定論的ハッシュ（[0, 1] を返す）
+// 異なるタコのスミ雲が同じセル番号を持っても異なるパターンになるよう center を seed に含める
+// center 座標を整数変換してシードに利用（整数演算のみ）
+fn dotHash(ix: i32, iy: i32, cx: f32, cy: f32) -> f32 {
+  let seed = u32(i32(cx) * 22695477 + i32(cy) * 6364136);
+  var v = (u32(ix) * 1664525u) ^ (u32(iy) * 1013904223u) ^ seed;
+  v ^= v >> 16u;
+  v *= 0x45d9f3bu;
+  v ^= v >> 15u;
+  return f32(v) / 4294967295.0;
 }
 
 @fragment
 fn fs_main(in: VertexOut) -> @location(0) vec4f {
   let dist = length(in.uv);
   if (dist > 1.0) { discard; }
-  // 中心が最も濃く、端に向かって二乗カーブでフェード
-  let fade = 1.0 - dist * dist;
-  return vec4f(in.color, in.alpha * fade);
+
+  // UV [-1, 1] → スミ雲ローカル座標（px）
+  let px = in.uv.x * in.radius;
+  let py = in.uv.y * in.radius;
+
+  // ドットグリッド（boidRenderer.ts と同じ定数: gridStep = 6, dotSize = 3）
+  let gridStep = 6.0;
+  let dotHalf  = 1.5;
+  let cell_x = i32(floor(px / gridStep));
+  let cell_y = i32(floor(py / gridStep));
+
+  // セル中心からの距離でドット矩形を判定
+  let local_x = px - (f32(cell_x) + 0.5) * gridStep;
+  let local_y = py - (f32(cell_y) + 0.5) * gridStep;
+  if (abs(local_x) > dotHalf || abs(local_y) > dotHalf) { discard; }
+
+  // 中心ほど密に、外側ほど間引く（boidRenderer.ts の density と同じ計算）
+  let density = 1.0 - dist;
+  if (dotHash(cell_x, cell_y, in.center.x, in.center.y) > density) { discard; }
+
+  // 黒背景で視認しやすいよう外縁の最小アルファを 0.6 に引き上げ
+  let dotAlpha = in.alpha * (0.6 + density * 0.4);
+  return vec4f(in.color, dotAlpha);
 }
 `;
 
@@ -499,7 +535,7 @@ export class WebGPURenderer implements BoidsRenderer {
 
       const progress = age / OCTOPUS_INK_CLOUD_DURATION_MS;
       const radius   = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
-      const alpha    = (1 - progress) * 0.7;
+      const alpha    = (1 - progress) * 0.92;
 
       const ci = inkCloudCount * INSTANCE_FLOATS;
       this.inkCloudData[ci]     = boid.lastInkX;
