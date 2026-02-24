@@ -59,15 +59,15 @@ const SEA_TURTLE_SPRITE = [
   [0, 0, 1, 0, 0],
 ] as const satisfies ReadonlyArray<ReadonlyArray<0 | 1>>;
 
-// クラゲ（5×7）- ドーム型の傘と垂れ下がる触手
+// クラゲ（7×7）- イカと区別しやすいよう幅広のドーム形傘と広がる触手
 const JELLYFISH_SPRITE = [
-  [0, 1, 1, 1, 0],
-  [1, 1, 1, 1, 1],
-  [1, 1, 1, 1, 1],
-  [0, 1, 1, 1, 0],
-  [1, 0, 1, 0, 1],
-  [0, 1, 0, 1, 0],
-  [0, 0, 1, 0, 0],
+  [0, 0, 1, 1, 1, 0, 0],
+  [0, 1, 1, 1, 1, 1, 0],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 1, 1, 1, 1, 1, 1],
+  [1, 0, 1, 0, 1, 0, 1],
+  [0, 1, 0, 0, 0, 1, 0],
+  [0, 0, 1, 0, 1, 0, 0],
 ] as const satisfies ReadonlyArray<ReadonlyArray<0 | 1>>;
 
 // マンタ（9×7）- 大型のひし形で優雅な翼
@@ -113,7 +113,7 @@ export const SPECIES_COLORS: Record<BoidSpecies, `#${string}`> = {
   [BoidSpecies.Octopus]:   '#ff8833', // オレンジ（タコの体色）
   [BoidSpecies.Crab]:      '#ff3311', // 赤（カニの甲羅）
   [BoidSpecies.SeaTurtle]: '#33ff99', // 緑（ウミガメの甲羅）
-  [BoidSpecies.Jellyfish]: '#ff88ee', // ピンク（クラゲの透明感）
+  [BoidSpecies.Jellyfish]: '#44ddff', // シアン（クラゲの生物発光・イカの紫と区別）
   [BoidSpecies.Manta]:     '#3388ff', // 深青（マンタの背面）
 };
 
