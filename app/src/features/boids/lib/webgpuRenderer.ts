@@ -14,6 +14,12 @@ import {
   PREDATOR_STUN_DOT_ORBIT,
   PREDATOR_STUN_DOT_RADIUS,
   PREDATOR_STUN_ORBIT_WOBBLE,
+  PREDATOR_CONFUSION_COLOR,
+  PREDATOR_CONFUSION_DOT_COUNT,
+  PREDATOR_CONFUSION_DOT_ORBIT,
+  PREDATOR_CONFUSION_DOT_RADIUS,
+  OCTOPUS_INK_CLOUD_DURATION_MS,
+  OCTOPUS_INK_CLOUD_MAX_RADIUS,
   CRT_SCANLINE_INTERVAL,
   CRT_SCANLINE_OPACITY,
   CRT_VIGNETTE_INNER_RADIUS,
@@ -65,6 +71,10 @@ const STUN_DOT_PIXEL_OFFSETS: PixelOffset[] = [{ ox: 0, oy: 0 }];
 
 // しびれエフェクトのドット色をモジュール初期化時に1回だけ変換してキャッシュ
 const STUN_DOT_RGB = hexToRgb(PREDATOR_STUN_COLOR);
+// 混乱エフェクトのドット色
+const CONFUSION_DOT_RGB = hexToRgb(PREDATOR_CONFUSION_COLOR);
+// スミ雲色（Canvas2D の rgba(90,90,90) に合わせた暗い灰色）
+const INK_CLOUD_RGB: [number, number, number] = [90 / 255, 90 / 255, 90 / 255];
 
 // ────── バッファレイアウト定数 ─────────────────────────────────────────────
 
@@ -173,6 +183,57 @@ fn fs_main(@builtin(position) pos: vec4f) -> @location(0) vec4f {
 }
 `;
 
+// スミ雲シェーダー（円形 SDF で中心が濃く端が透明になるグラデーション）
+const INK_CLOUD_SHADER = /* wgsl */ `
+struct Uniforms {
+  screen_size: vec2f,
+}
+
+@group(0) @binding(0) var<uniform> uniforms: Uniforms;
+
+struct VertexOut {
+  @builtin(position) position: vec4f,
+  @location(0) uv: vec2f,
+  @location(1) color: vec3f,
+  @location(2) alpha: f32,
+}
+
+@vertex
+fn vs_main(
+  @builtin(vertex_index) vi: u32,
+  @location(0) center: vec2f,
+  @location(1) size_alpha: vec2f,
+  @location(2) color: vec3f,
+) -> VertexOut {
+  let qx = array<f32, 6>(-1.0,  1.0, -1.0,  1.0,  1.0, -1.0);
+  let qy = array<f32, 6>(-1.0, -1.0,  1.0, -1.0,  1.0,  1.0);
+  let uv = vec2f(qx[vi], qy[vi]);
+  let radius = size_alpha.x;
+  let wx = center.x + uv.x * radius;
+  let wy = center.y + uv.y * radius;
+  let ndc_x = (wx / uniforms.screen_size.x) * 2.0 - 1.0;
+  let ndc_y = 1.0 - (wy / uniforms.screen_size.y) * 2.0;
+  var out: VertexOut;
+  out.position = vec4f(ndc_x, ndc_y, 0.0, 1.0);
+  out.uv = uv;
+  out.color = color;
+  out.alpha = size_alpha.y;
+  return out;
+}
+
+@fragment
+fn fs_main(in: VertexOut) -> @location(0) vec4f {
+  let dist = length(in.uv);
+  if (dist > 1.0) { discard; }
+  // 中心が最も濃く、端に向かって二乗カーブでフェード
+  let fade = 1.0 - dist * dist;
+  return vec4f(in.color, in.alpha * fade);
+}
+`;
+
+// スミ雲インスタンスの上限（同時に放出中の雲の最大数）
+const INK_CLOUD_MAX_INSTANCES = 16;
+
 // ────── WebGPU レンダラー ─────────────────────────────────────────────────
 
 export class WebGPURenderer implements BoidsRenderer {
@@ -182,16 +243,20 @@ export class WebGPURenderer implements BoidsRenderer {
 
   private spritePipeline!: GPURenderPipeline;
   private crtPipeline!: GPURenderPipeline;
+  private inkCloudPipeline!: GPURenderPipeline;
 
   private uniformBuffer!: GPUBuffer;
   private crtUniformBuffer!: GPUBuffer;
   private instanceBuffer!: GPUBuffer;
+  private inkCloudBuffer!: GPUBuffer;
 
   private spriteBindGroup!: GPUBindGroup;
   private crtBindGroup!: GPUBindGroup;
+  private inkCloudBindGroup!: GPUBindGroup;
 
   // CPU 側のインスタンスデータ（フレームごとに書き直す）
   private instanceData: Float32Array<ArrayBuffer>;
+  private inkCloudData: Float32Array<ArrayBuffer>;
 
   constructor(canvas: HTMLCanvasElement, device: GPUDevice) {
     this.device = device;
@@ -203,7 +268,8 @@ export class WebGPURenderer implements BoidsRenderer {
 
     context.configure({ device, format: this.format, alphaMode: 'opaque' });
 
-    this.instanceData = new Float32Array(new ArrayBuffer(MAX_INSTANCES * INSTANCE_FLOATS * 4));
+    this.instanceData    = new Float32Array(new ArrayBuffer(MAX_INSTANCES * INSTANCE_FLOATS * 4));
+    this.inkCloudData    = new Float32Array(new ArrayBuffer(INK_CLOUD_MAX_INSTANCES * INSTANCE_FLOATS * 4));
 
     this._createBuffers();
     this._createPipelines();
@@ -231,14 +297,21 @@ export class WebGPURenderer implements BoidsRenderer {
       size: MAX_INSTANCES * INSTANCE_STRIDE,
       usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
     });
+
+    // スミ雲インスタンスバッファ
+    this.inkCloudBuffer = device.createBuffer({
+      size: INK_CLOUD_MAX_INSTANCES * INSTANCE_STRIDE,
+      usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+    });
   }
 
   // レンダリングパイプラインを生成する
   private _createPipelines(): void {
     const { device, format } = this;
 
-    const spriteModule = device.createShaderModule({ code: SPRITE_SHADER });
-    const crtModule = device.createShaderModule({ code: CRT_SHADER });
+    const spriteModule   = device.createShaderModule({ code: SPRITE_SHADER });
+    const crtModule      = device.createShaderModule({ code: CRT_SHADER });
+    const inkCloudModule = device.createShaderModule({ code: INK_CLOUD_SHADER });
 
     // スプライトパイプライン（通常アルファ合成）
     this.spritePipeline = device.createRenderPipeline({
@@ -266,6 +339,40 @@ export class WebGPURenderer implements BoidsRenderer {
             format,
             blend: {
               // 通常アルファ合成：Canvas2D と同じ見た目になる
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
+              alpha: { srcFactor: 'one',       dstFactor: 'zero',                operation: 'add' },
+            },
+          },
+        ],
+      },
+      primitive: { topology: 'triangle-list' },
+    });
+
+    // スミ雲パイプライン（円形 SDF で丸く描画）
+    this.inkCloudPipeline = device.createRenderPipeline({
+      layout: 'auto',
+      vertex: {
+        module: inkCloudModule,
+        entryPoint: 'vs_main',
+        buffers: [
+          {
+            arrayStride: INSTANCE_STRIDE,
+            stepMode: 'instance',
+            attributes: [
+              { shaderLocation: 0, offset: 0,  format: 'float32x2' }, // center
+              { shaderLocation: 1, offset: 8,  format: 'float32x2' }, // radius, alpha
+              { shaderLocation: 2, offset: 16, format: 'float32x3' }, // color
+            ],
+          },
+        ],
+      },
+      fragment: {
+        module: inkCloudModule,
+        entryPoint: 'fs_main',
+        targets: [
+          {
+            format,
+            blend: {
               color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha', operation: 'add' },
               alpha: { srcFactor: 'one',       dstFactor: 'zero',                operation: 'add' },
             },
@@ -308,6 +415,12 @@ export class WebGPURenderer implements BoidsRenderer {
     this.crtBindGroup = device.createBindGroup({
       layout: this.crtPipeline.getBindGroupLayout(0),
       entries: [{ binding: 0, resource: { buffer: this.crtUniformBuffer } }],
+    });
+
+    // スミ雲はスプライトと同じ uniformBuffer（screen_size）を共有
+    this.inkCloudBindGroup = device.createBindGroup({
+      layout: this.inkCloudPipeline.getBindGroupLayout(0),
+      entries: [{ binding: 0, resource: { buffer: this.uniformBuffer } }],
     });
   }
 
@@ -373,6 +486,32 @@ export class WebGPURenderer implements BoidsRenderer {
       }
     };
 
+    const now = performance.now();
+
+    // スミ雲インスタンスデータを構築（専用パイプラインで円形描画するため別バッファに格納）
+    let inkCloudCount = 0;
+    const [icR, icG, icB] = INK_CLOUD_RGB;
+    for (const boid of boids) {
+      if (boid.species !== BoidSpecies.Octopus) continue;
+      const age = now - boid.lastInkedAt;
+      if (age < 0 || age > OCTOPUS_INK_CLOUD_DURATION_MS) continue;
+      if (inkCloudCount >= INK_CLOUD_MAX_INSTANCES) break;
+
+      const progress = age / OCTOPUS_INK_CLOUD_DURATION_MS;
+      const radius   = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
+      const alpha    = (1 - progress) * 0.7;
+
+      const ci = inkCloudCount * INSTANCE_FLOATS;
+      this.inkCloudData[ci]     = boid.lastInkX;
+      this.inkCloudData[ci + 1] = boid.lastInkY;
+      this.inkCloudData[ci + 2] = radius;
+      this.inkCloudData[ci + 3] = alpha;
+      this.inkCloudData[ci + 4] = icR;
+      this.inkCloudData[ci + 5] = icG;
+      this.inkCloudData[ci + 6] = icB;
+      inkCloudCount++;
+    }
+
     // Boid を描画
     for (const boid of boids) {
       const pixels  = SPECIES_PIXEL_OFFSETS[boid.species];
@@ -390,20 +529,26 @@ export class WebGPURenderer implements BoidsRenderer {
       addSprite(predator.x, predator.y, angle, SHARK_PIXEL_OFFSETS, halfSize, r, g, b);
     }
 
-    // しびれ中は黄色ドットエフェクトを描画
+    // しびれ中は黄色ドットエフェクトを描画（混乱より優先）
     if (predator.isStunned) {
-      const now = performance.now();
       const [dr, dg, db] = STUN_DOT_RGB;
-      // sin 波による点滅（0.7〜1.0 の範囲でアルファを変化）
       const blink = 0.7 + 0.3 * (0.5 + 0.5 * Math.sin(now * 0.01));
       for (let i = 0; i < PREDATOR_STUN_DOT_COUNT; i++) {
-        // フレームごとに回転し、各ドットを等間隔に配置
         const angle = now * 0.003 + (i * Math.PI * 2) / PREDATOR_STUN_DOT_COUNT;
-        // 振動で軌道半径をわずかに変化させてしびれ感を演出
         const orbit = PREDATOR_STUN_DOT_ORBIT + PREDATOR_STUN_ORBIT_WOBBLE * Math.sin(now * 0.008 + i);
         const dotX  = predator.x + Math.cos(angle) * orbit;
         const dotY  = predator.y + Math.sin(angle) * orbit;
         addSprite(dotX, dotY, 0, STUN_DOT_PIXEL_OFFSETS, PREDATOR_STUN_DOT_RADIUS, dr, dg, db, blink);
+      }
+    } else if (predator.isConfused) {
+      // 混乱中は白いドットが反時計回りに回転
+      const [dr, dg, db] = CONFUSION_DOT_RGB;
+      const blink = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.008));
+      for (let i = 0; i < PREDATOR_CONFUSION_DOT_COUNT; i++) {
+        const angle = -now * 0.002 + (i * Math.PI * 2) / PREDATOR_CONFUSION_DOT_COUNT;
+        const dotX  = predator.x + Math.cos(angle) * PREDATOR_CONFUSION_DOT_ORBIT;
+        const dotY  = predator.y + Math.sin(angle) * PREDATOR_CONFUSION_DOT_ORBIT;
+        addSprite(dotX, dotY, 0, STUN_DOT_PIXEL_OFFSETS, PREDATOR_CONFUSION_DOT_RADIUS, dr, dg, db, blink);
       }
     }
 
@@ -430,6 +575,15 @@ export class WebGPURenderer implements BoidsRenderer {
       ],
     });
 
+    // スミ雲を先に描画（スプライトの背面レイヤー）
+    if (inkCloudCount > 0) {
+      device.queue.writeBuffer(this.inkCloudBuffer, 0, this.inkCloudData, 0, inkCloudCount * INSTANCE_FLOATS);
+      pass.setPipeline(this.inkCloudPipeline);
+      pass.setBindGroup(0, this.inkCloudBindGroup);
+      pass.setVertexBuffer(0, this.inkCloudBuffer);
+      pass.draw(6, inkCloudCount);
+    }
+
     // スプライトを一括描画
     if (instanceCount > 0) {
       pass.setPipeline(this.spritePipeline);
@@ -451,6 +605,7 @@ export class WebGPURenderer implements BoidsRenderer {
     this.uniformBuffer.destroy();
     this.crtUniformBuffer.destroy();
     this.instanceBuffer.destroy();
+    this.inkCloudBuffer.destroy();
     this.device.destroy();
   }
 }

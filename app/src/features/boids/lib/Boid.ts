@@ -6,8 +6,12 @@ import {
   PREDATOR_FLEE_RADIUS,
   PREDATOR_FLEE_FORCE_SCALE,
   SPECIES_PARAMS,
+  OCTOPUS_INK_PROBABILITY,
+  OCTOPUS_INK_COOLDOWN_MS,
+  PREDATOR_CONFUSION_DURATION_MS,
   type SpeciesParams,
 } from './constants';
+
 import { Vec2, magnitude, normalize, limit } from './vec2';
 import type { Predator } from './Predator';
 
@@ -19,6 +23,16 @@ export class Boid {
   species: BoidSpecies;
   // 種固有パラメータをキャッシュ（this.species は不変なため、毎フレームの SPECIES_PARAMS ルックアップを排除）
   private readonly params: SpeciesParams;
+  // タコのスミ放出クールダウン終了時刻（performance.now() ベース。0 = クールダウンなし）
+  private _inkCooldownUntil: number;
+  // スミ雲描画用：最後にスミを放出した時刻と位置（レンダラーが参照）
+  private _lastInkedAt: number;
+  private _lastInkX:    number;
+  private _lastInkY:    number;
+
+  get lastInkedAt(): number { return this._lastInkedAt; }
+  get lastInkX():    number { return this._lastInkX; }
+  get lastInkY():    number { return this._lastInkY; }
 
   constructor(x: number, y: number, species?: BoidSpecies) {
     this.x = x;
@@ -30,6 +44,10 @@ export class Boid {
     // 種が指定されていれば使用し、なければ重み付きランダムで割り当て
     this.species = species ?? getRandomSpecies();
     this.params = SPECIES_PARAMS[this.species];
+    this._inkCooldownUntil = 0;
+    this._lastInkedAt = -Infinity; // 未放出状態（レンダラーがスミ雲を描画しないよう負の大きな値を初期値に）
+    this._lastInkX    = 0;
+    this._lastInkY    = 0;
   }
 
   // 分離ルール：近くのBoidから離れる（種固有の分離半径を使用、全種に対して適用）
@@ -126,6 +144,27 @@ export class Boid {
     const alignment  = this.align(boids, effectiveMaxSpeed, effectiveMaxForce);
     const cohesion   = this.cohere(boids, effectiveMaxSpeed, effectiveMaxForce);
     const fleeForce  = this.flee(predator, width, height, effectiveMaxSpeed, effectiveMaxForce);
+
+    // タコはサメが逃避範囲内のとき、確率とクールダウンを判定してスミを放出する
+    // fleeForce はタコが最大速度で逃げている平衡状態で 0 になるため、距離で直接判定する
+    if (this.species === BoidSpecies.Octopus && Math.random() < OCTOPUS_INK_PROBABILITY) {
+      let inkDx = this.x - predator.x;
+      if (Math.abs(inkDx) > width / 2) inkDx -= Math.sign(inkDx) * width;
+      let inkDy = this.y - predator.y;
+      if (Math.abs(inkDy) > height / 2) inkDy -= Math.sign(inkDy) * height;
+      const distToPredator = magnitude(inkDx, inkDy);
+      if (distToPredator > 0 && distToPredator <= PREDATOR_FLEE_RADIUS) {
+        const now = performance.now();
+        if (now >= this._inkCooldownUntil) {
+          predator.confuse(PREDATOR_CONFUSION_DURATION_MS);
+          this._inkCooldownUntil = now + OCTOPUS_INK_COOLDOWN_MS;
+          // スミ雲エフェクト用に放出位置と時刻を記録
+          this._lastInkedAt = now;
+          this._lastInkX    = this.x;
+          this._lastInkY    = this.y;
+        }
+      }
+    }
 
     // 種固有の重みで各ルールの力を加算（逃避が最優先）
     this.vx += separation.x * params.separationWeight

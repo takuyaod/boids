@@ -27,6 +27,12 @@ export class Predator {
   private _satiety: number;
   // しびれ終了時刻（performance.now() ベース。0 = しびれなし）
   private _stunnedUntil: number;
+  // 混乱終了時刻（performance.now() ベース。0 = 混乱なし）
+  private _confusedUntil: number;
+  // 混乱中の現在進行方向（ランダム角度。毎フレーム変えると力が打ち消し合うため保持する）
+  private _confusionAngle: number;
+  // 混乱方向を次に更新するタイムスタンプ
+  private _confusionAngleChangedAt: number;
   // クラゲ捕食後の再捕食クールダウン終了時刻（0 = クールダウンなし）
   private _jellyfishCooldownUntil: number;
 
@@ -39,11 +45,29 @@ export class Predator {
     return performance.now() < this._stunnedUntil;
   }
 
+  // 現在混乱状態かどうか（しびれ中は混乱を無効化）
+  get isConfused(): boolean {
+    const now = performance.now();
+    return now < this._confusedUntil && now >= this._stunnedUntil;
+  }
+
+  // 外部からサメを混乱状態にする（タコのスミ放出から呼び出す）
+  confuse(durationMs: number): void {
+    const now = performance.now();
+    this._confusedUntil = now + durationMs;
+    // 混乱開始時に即座に新しいランダム方向を設定する
+    this._confusionAngle = Math.random() * Math.PI * 2;
+    this._confusionAngleChangedAt = now;
+  }
+
   constructor(x: number, y: number) {
     this.x = x;
     this.y = y;
     this._satiety = 0;
     this._stunnedUntil = 0;
+    this._confusedUntil = 0;
+    this._confusionAngle = 0;
+    this._confusionAngleChangedAt = 0;
     this._jellyfishCooldownUntil = 0;
     // 初期速度は定数 PREDATOR_SPEED を使用（スポーン時点では動的パラメータを参照しない設計）
     const angle = Math.random() * Math.PI * 2;
@@ -151,8 +175,23 @@ export class Predator {
       this.vx = 0;
       this.vy = 0;
     } else {
-      this.vx += steer.x;
-      this.vy += steer.y;
+      // 混乱中は追跡をやめてランダム方向にステアリング
+      // 毎フレームランダムにすると力が打ち消し合うため、600ms ごとに方向を更新する
+      let activeSteer = steer;
+      if (now < this._confusedUntil) {
+        if (now - this._confusionAngleChangedAt > 600) {
+          this._confusionAngle = Math.random() * Math.PI * 2;
+          this._confusionAngleChangedAt = now;
+        }
+        activeSteer = limit(
+          Math.cos(this._confusionAngle) * effectiveSpeed - this.vx,
+          Math.sin(this._confusionAngle) * effectiveSpeed - this.vy,
+          effectiveMaxForce,
+        );
+      }
+
+      this.vx += activeSteer.x;
+      this.vy += activeSteer.y;
 
       const vel = limit(this.vx, this.vy, effectiveSpeed);
       this.vx = vel.x;

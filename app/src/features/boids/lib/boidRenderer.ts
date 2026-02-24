@@ -1,5 +1,40 @@
 import { Boid } from './Boid';
-import { SPECIES_SPRITES, SPECIES_COLORS, SPECIES_PIXEL_SIZES } from './constants';
+import {
+  BoidSpecies,
+  SPECIES_SPRITES,
+  SPECIES_COLORS,
+  SPECIES_PIXEL_SIZES,
+  OCTOPUS_INK_CLOUD_DURATION_MS,
+  OCTOPUS_INK_CLOUD_MAX_RADIUS,
+} from './constants';
+
+// タコのスミ雲を放出位置に描画する（拡大しながらフェードアウト）
+export function drawInkCloud(ctx: CanvasRenderingContext2D, boid: Boid, now: number): void {
+  if (boid.species !== BoidSpecies.Octopus) return;
+  const age = now - boid.lastInkedAt;
+  if (age < 0 || age > OCTOPUS_INK_CLOUD_DURATION_MS) return;
+
+  // progress: 0 → 1（放出直後 → 消滅）
+  const progress = age / OCTOPUS_INK_CLOUD_DURATION_MS;
+  // 最初は素早く広がり後半はゆっくり広がる（√ カーブ）。最小半径 5px を保証
+  const radius = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
+  // 時間とともに透明になる
+  const alpha  = (1 - progress) * 0.7;
+
+  ctx.save();
+  const grad = ctx.createRadialGradient(
+    boid.lastInkX, boid.lastInkY, 0,
+    boid.lastInkX, boid.lastInkY, radius,
+  );
+  grad.addColorStop(0,   `rgba(90, 90, 90, ${alpha})`);
+  grad.addColorStop(0.5, `rgba(60, 60, 60, ${alpha * 0.55})`);
+  grad.addColorStop(1,   `rgba(30, 30, 30, 0)`);
+  ctx.fillStyle = grad;
+  ctx.beginPath();
+  ctx.arc(boid.lastInkX, boid.lastInkY, radius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
 
 // Boidを種別に対応したピクセルアートスプライトでCanvasに描画する
 export function drawBoid(ctx: CanvasRenderingContext2D, boid: Boid): void {
