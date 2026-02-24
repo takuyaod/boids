@@ -39,7 +39,7 @@ const SPECIES_DISPLAY_ORDER: ReadonlyArray<{
   {
     species: BoidSpecies.Octopus,
     label: 'octopus',
-    tooltip: '[タコ] 孤立傾向。分離半径が大きく（65）、整列・凝集がほぼゼロ。ゆっくり単独行動',
+    tooltip: '[タコ] 孤立傾向。分離半径が大きく（65）、整列・凝集がほぼゼロ。ゆっくり単独行動。サメが接近時にスミを放出し 4 秒間混乱させる固有能力（確率 1%/frame、CD 8 秒）',
   },
   {
     species: BoidSpecies.Crab,

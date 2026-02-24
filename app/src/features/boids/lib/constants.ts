@@ -252,6 +252,20 @@ export const DEFAULT_SIM_PARAMS: SimParams = {
   predatorSpeedPenalty: PREDATOR_SPEED_PENALTY,
 };
 
+// タコのスミ放出パラメータ
+export const OCTOPUS_INK_PROBABILITY     = 0.01;  // フレームごとのスミ放出確率（サメが flee 範囲内のとき）
+export const OCTOPUS_INK_COOLDOWN_MS     = 8000;  // スミ放出後のクールダウン（ミリ秒）
+export const OCTOPUS_INK_CLOUD_DURATION_MS = 3000; // スミ雲エフェクトの表示時間（ミリ秒）
+export const OCTOPUS_INK_CLOUD_MAX_RADIUS  = 55;   // スミ雲の最大半径（px）
+
+// サメの混乱状態パラメータ
+export const PREDATOR_CONFUSION_DURATION_MS               = 4000;     // 混乱持続時間（ミリ秒）
+export const PREDATOR_CONFUSION_ANGLE_CHANGE_INTERVAL_MS  = 600;      // 混乱中の進行方向を更新する間隔（ミリ秒）
+export const PREDATOR_CONFUSION_COLOR: `#${string}`       = '#ffffff'; // 混乱エフェクトの色（白）
+export const PREDATOR_CONFUSION_DOT_COUNT                 = 4;        // 混乱エフェクトのドット数
+export const PREDATOR_CONFUSION_DOT_ORBIT                 = 32;       // ドットの回転軌道半径（px）
+export const PREDATOR_CONFUSION_DOT_RADIUS                = 3;        // ドットの描画半径（px）
+
 // しびれエフェクトのパラメータ
 export const PREDATOR_STUN_DURATION_MS  = 3000;      // しびれ持続時間（ミリ秒）
 export const PREDATOR_STUN_DOT_COUNT    = 6;         // しびれエフェクトのドット数

@@ -8,6 +8,10 @@ import {
   PREDATOR_STUN_DOT_ORBIT,
   PREDATOR_STUN_DOT_RADIUS,
   PREDATOR_STUN_ORBIT_WOBBLE,
+  PREDATOR_CONFUSION_COLOR,
+  PREDATOR_CONFUSION_DOT_COUNT,
+  PREDATOR_CONFUSION_DOT_ORBIT,
+  PREDATOR_CONFUSION_DOT_RADIUS,
 } from './constants';
 
 // 捕食者（サメ）をピクセルアートとしてCanvasに描画する
@@ -40,11 +44,38 @@ export function drawPredator(ctx: CanvasRenderingContext2D, predator: Predator):
 
   ctx.restore();
 
-  // しびれ中は黄色ドットエフェクトを描画
+  const now = performance.now();
+  // しびれ中は黄色ドットエフェクトを描画（混乱エフェクトより優先）
   if (predator.isStunned) {
-    const now = performance.now();
     drawStunEffect(ctx, predator, now);
+  } else if (predator.isConfused) {
+    // 混乱中は「？」を点滅表示
+    drawConfusionEffect(ctx, predator, now);
   }
+}
+
+// 混乱エフェクト：白いドットが反時計回りに回転（しびれの黄色時計回りと逆方向で区別）
+function drawConfusionEffect(ctx: CanvasRenderingContext2D, predator: Predator, now: number): void {
+  const blink = 0.6 + 0.4 * (0.5 + 0.5 * Math.sin(now * 0.008));
+
+  ctx.save();
+  ctx.shadowBlur  = 10;
+  ctx.shadowColor = PREDATOR_CONFUSION_COLOR;
+  ctx.fillStyle   = PREDATOR_CONFUSION_COLOR;
+  ctx.globalAlpha = blink;
+
+  for (let i = 0; i < PREDATOR_CONFUSION_DOT_COUNT; i++) {
+    // 反時計回りにゆっくり回転
+    const angle = -now * 0.002 + (i * Math.PI * 2) / PREDATOR_CONFUSION_DOT_COUNT;
+    const dotX  = predator.x + Math.cos(angle) * PREDATOR_CONFUSION_DOT_ORBIT;
+    const dotY  = predator.y + Math.sin(angle) * PREDATOR_CONFUSION_DOT_ORBIT;
+
+    ctx.beginPath();
+    ctx.arc(dotX, dotY, PREDATOR_CONFUSION_DOT_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.restore();
 }
 
 // しびれエフェクト：黄色ドットが捕食者の周囲を回転する

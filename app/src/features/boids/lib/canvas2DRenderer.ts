@@ -1,7 +1,7 @@
 import type { BoidsRenderer } from './renderer';
 import type { Boid } from './Boid';
 import type { Predator } from './Predator';
-import { drawBoid } from './boidRenderer';
+import { drawBoid, drawInkCloud } from './boidRenderer';
 import { drawPredator } from './predatorRenderer';
 import { type CRTCache, createCRTCache, drawCRTOverlay } from './crt';
 
@@ -27,10 +27,16 @@ export class Canvas2DRenderer implements BoidsRenderer {
 
   render(boids: Boid[], predator: Predator): void {
     const { ctx, width, height } = this;
+    const now = performance.now();
 
     // 背景を黒でクリア
     ctx.fillStyle = '#000000';
     ctx.fillRect(0, 0, width, height);
+
+    // スミ雲を Boid より先に描画（背面レイヤーとして表示）
+    for (const boid of boids) {
+      drawInkCloud(ctx, boid, now);
+    }
 
     // 各 Boid を描画
     for (const boid of boids) {
