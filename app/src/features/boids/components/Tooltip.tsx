@@ -8,7 +8,7 @@ type TooltipProps = {
   children: ReactNode;
 };
 
-// サイドバーの幅（ツールチップの位置計算に使用）
+// ホバー要素とツールチップ右端の間隔（px）
 const TOOLTIP_OFFSET = 8;
 // ホバー表示遅延（ms）
 const HOVER_DELAY_MS = 250;
@@ -20,10 +20,13 @@ export default function Tooltip({ content, children }: TooltipProps) {
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const showTooltip = useCallback(() => {
+    if (timerRef.current) {
+      clearTimeout(timerRef.current);
+    }
     timerRef.current = setTimeout(() => {
       if (!wrapperRef.current) return;
       const rect = wrapperRef.current.getBoundingClientRect();
-      // ツールチップを要素の左側に表示（ウィンドウ左端に近い場合は上側に調整）
+      // ツールチップを要素の左側に表示
       setPos({
         top: rect.top + rect.height / 2,
         left: rect.left - TOOLTIP_OFFSET,

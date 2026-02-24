@@ -11,6 +11,19 @@ type ParamsPanelProps = {
   readonlyStats?: { satiety: number };
 };
 
+// パラメータのツールチップテキスト（PopulationPanel の SPECIES_DISPLAY_ORDER / SHARK_TOOLTIP と同じ方針でデータを一元管理）
+const PARAMS_TOOLTIPS = {
+  boidCount: '各種ボイドの初期個体数。変更するとシミュレーションをリセット',
+  maxSpeed: 'ボイド全種の最高速度の倍率（種固有の値にこの倍率をかける）',
+  maxForce: 'ボイド全種の最大操舵力の倍率（向き変更の素早さに影響）',
+  satiety: 'サメの現在の満腹度。捕食するごとに増加し、時間とともに減少',
+  speedupThreshold: '満腹度がこの値を超えるとサメが加速する閾値',
+  overfedThreshold: '満腹度がこの値を超えるとサメが減速する（過食）閾値',
+  satietyDecayRate: '毎フレームの満腹度の減少量。大きいほど空腹になりやすい',
+  speedBoost: '空腹時（speedup_threshold 超）のサメの速度倍率',
+  speedPenalty: '過食時（overfed_threshold 超）のサメの速度倍率',
+} as const;
+
 // スライダー1行分のコンポーネント
 type SliderRowProps = {
   label: string;
@@ -52,7 +65,7 @@ type ReadonlyRowProps = {
   label: string;
   tooltip: string;
   display: string;
-  color: string;
+  color: `#${string}`;
 };
 
 function ReadonlyRow({ label, tooltip, display, color }: ReadonlyRowProps) {
@@ -80,7 +93,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
       <div className="px-3 py-2 flex flex-col gap-2.5">
         <SliderRow
           label="boid_count"
-          tooltip="各種ボイドの初期個体数。変更するとシミュレーションをリセット"
+          tooltip={PARAMS_TOOLTIPS.boidCount}
           value={params.boidCount}
           min={10}
           max={200}
@@ -91,7 +104,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         />
         <SliderRow
           label="max_speed"
-          tooltip="ボイド全種の最高速度の倍率（種固有の値にこの倍率をかける）"
+          tooltip={PARAMS_TOOLTIPS.maxSpeed}
           value={params.maxSpeed}
           min={0.5}
           max={5.0}
@@ -102,7 +115,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         />
         <SliderRow
           label="max_force"
-          tooltip="ボイド全種の最大操舵力の倍率（向き変更の素早さに影響）"
+          tooltip={PARAMS_TOOLTIPS.maxForce}
           value={params.maxForce}
           min={0.01}
           max={0.20}
@@ -120,14 +133,14 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         {/* 満腹度（読み取り専用表示） */}
         <ReadonlyRow
           label="satiety"
-          tooltip="サメの現在の満腹度。捕食するごとに増加し、時間とともに減少"
+          tooltip={PARAMS_TOOLTIPS.satiety}
           display={satiety.toFixed(1)}
           color="#ff2200"
         />
 
         <SliderRow
           label="speedup_threshold"
-          tooltip="満腹度がこの値を超えるとサメが加速する閾値"
+          tooltip={PARAMS_TOOLTIPS.speedupThreshold}
           value={params.predatorSpeedupThreshold}
           min={1}
           max={15}
@@ -144,7 +157,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         />
         <SliderRow
           label="overfed_threshold"
-          tooltip="満腹度がこの値を超えるとサメが減速する（過食）閾値"
+          tooltip={PARAMS_TOOLTIPS.overfedThreshold}
           value={params.predatorOverfedThreshold}
           min={2}
           max={20}
@@ -161,7 +174,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         />
         <SliderRow
           label="satiety_decay_rate"
-          tooltip="毎フレームの満腹度の減少量。大きいほど空腹になりやすい"
+          tooltip={PARAMS_TOOLTIPS.satietyDecayRate}
           value={params.predatorSatietyDecayRate}
           min={0.001}
           max={0.020}
@@ -172,7 +185,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         />
         <SliderRow
           label="speed_boost"
-          tooltip="空腹時（speedup_threshold 超）のサメの速度倍率"
+          tooltip={PARAMS_TOOLTIPS.speedBoost}
           value={params.predatorSpeedBoost}
           min={1.0}
           max={3.0}
@@ -183,7 +196,7 @@ const ParamsPanel = memo(function ParamsPanel({ params, onChange, readonlyStats 
         />
         <SliderRow
           label="speed_penalty"
-          tooltip="過食時（overfed_threshold 超）のサメの速度倍率"
+          tooltip={PARAMS_TOOLTIPS.speedPenalty}
           value={params.predatorSpeedPenalty}
           min={0.1}
           max={0.9}
