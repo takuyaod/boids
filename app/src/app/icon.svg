@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!--
+    タコスプライト (7×6) を 4px スケールで中央配置
+    offset_x=2, offset_y=4, color=#ff8833（タコのネオンオレンジ）
+
+    行0: [0,0,1,1,1,0,0]  頭頂部
+    行1: [0,1,1,1,1,1,0]  胴体
+    行2: [0,1,1,1,1,1,0]  胴体
+    行3: [0,1,1,1,1,1,0]  胴体
+    行4: [1,0,1,0,1,0,1]  触手上段
+    行5: [0,1,0,1,0,1,0]  触手下段
+  -->
+
+  <!-- 行0 -->
+  <rect x="10" y="4"  width="4" height="4" fill="#ff8833"/>
+  <rect x="14" y="4"  width="4" height="4" fill="#ff8833"/>
+  <rect x="18" y="4"  width="4" height="4" fill="#ff8833"/>
+
+  <!-- 行1 -->
+  <rect x="6"  y="8"  width="4" height="4" fill="#ff8833"/>
+  <rect x="10" y="8"  width="4" height="4" fill="#ff8833"/>
+  <rect x="14" y="8"  width="4" height="4" fill="#ff8833"/>
+  <rect x="18" y="8"  width="4" height="4" fill="#ff8833"/>
+  <rect x="22" y="8"  width="4" height="4" fill="#ff8833"/>
+
+  <!-- 行2 -->
+  <rect x="2"  y="12" width="4" height="4" fill="#ff8833"/>
+  <rect x="6"  y="12" width="4" height="4" fill="#ff8833"/>
+  <rect x="10" y="12" width="4" height="4" fill="#ff8833"/>
+  <rect x="14" y="12" width="4" height="4" fill="#ff8833"/>
+  <rect x="18" y="12" width="4" height="4" fill="#ff8833"/>
+  <rect x="22" y="12" width="4" height="4" fill="#ff8833"/>
+  <rect x="26" y="12" width="4" height="4" fill="#ff8833"/>
+
+  <!-- 行3 -->
+  <rect x="6"  y="16" width="4" height="4" fill="#ff8833"/>
+  <rect x="10" y="16" width="4" height="4" fill="#ff8833"/>
+  <rect x="14" y="16" width="4" height="4" fill="#ff8833"/>
+  <rect x="18" y="16" width="4" height="4" fill="#ff8833"/>
+  <rect x="22" y="16" width="4" height="4" fill="#ff8833"/>
+
+  <!-- 行4: 触手上段 -->
+  <rect x="2"  y="20" width="4" height="4" fill="#ff8833"/>
+  <rect x="10" y="20" width="4" height="4" fill="#ff8833"/>
+  <rect x="18" y="20" width="4" height="4" fill="#ff8833"/>
+  <rect x="26" y="20" width="4" height="4" fill="#ff8833"/>
+
+  <!-- 行5: 触手下段 -->
+  <rect x="6"  y="24" width="4" height="4" fill="#ff8833"/>
+  <rect x="14" y="24" width="4" height="4" fill="#ff8833"/>
+  <rect x="22" y="24" width="4" height="4" fill="#ff8833"/>
+</svg>
