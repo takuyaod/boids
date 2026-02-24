@@ -260,6 +260,7 @@ export const OCTOPUS_INK_CLOUD_MAX_RADIUS  = 55;   // スミ雲の最大半径�
 
 // サメの混乱状態パラメータ
 export const PREDATOR_CONFUSION_DURATION_MS               = 4000;     // 混乱持続時間（ミリ秒）
+export const PREDATOR_CONFUSION_ANGLE_CHANGE_INTERVAL_MS  = 600;      // 混乱中の進行方向を更新する間隔（ミリ秒）
 export const PREDATOR_CONFUSION_COLOR: `#${string}`       = '#ffffff'; // 混乱エフェクトの色（白）
 export const PREDATOR_CONFUSION_DOT_COUNT                 = 4;        // 混乱エフェクトのドット数
 export const PREDATOR_CONFUSION_DOT_ORBIT                 = 32;       // ドットの回転軌道半径（px）

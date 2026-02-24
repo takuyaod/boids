@@ -6,6 +6,7 @@ import {
   PREDATOR_EAT_RADIUS,
   PREDATOR_STUN_DURATION_MS,
   PREDATOR_JELLYFISH_COOLDOWN_MS,
+  PREDATOR_CONFUSION_ANGLE_CHANGE_INTERVAL_MS,
 } from './constants';
 import { Vec2, magnitude, normalize, limit } from './vec2';
 
@@ -46,6 +47,7 @@ export class Predator {
   }
 
   // 現在混乱状態かどうか（しびれ中は混乱を無効化）
+  // _stunnedUntil の初期値は 0 のため、未しびれ状態では now >= 0 が常に true となり混乱判定が有効になる
   get isConfused(): boolean {
     const now = performance.now();
     return now < this._confusedUntil && now >= this._stunnedUntil;
@@ -176,10 +178,10 @@ export class Predator {
       this.vy = 0;
     } else {
       // 混乱中は追跡をやめてランダム方向にステアリング
-      // 毎フレームランダムにすると力が打ち消し合うため、600ms ごとに方向を更新する
+      // 毎フレームランダムにすると力が打ち消し合うため、一定間隔ごとに方向を更新する
       let activeSteer = steer;
       if (now < this._confusedUntil) {
-        if (now - this._confusionAngleChangedAt > 600) {
+        if (now - this._confusionAngleChangedAt > PREDATOR_CONFUSION_ANGLE_CHANGE_INTERVAL_MS) {
           this._confusionAngle = Math.random() * Math.PI * 2;
           this._confusionAngleChangedAt = now;
         }

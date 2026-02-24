@@ -1,6 +1,7 @@
 import type { BoidsRenderer } from './renderer';
 import type { Boid } from './Boid';
 import type { Predator } from './Predator';
+import { computeInkCloudState } from './boidRenderer';
 import {
   BoidSpecies,
   SPECIES_SPRITES,
@@ -19,7 +20,6 @@ import {
   PREDATOR_CONFUSION_DOT_ORBIT,
   PREDATOR_CONFUSION_DOT_RADIUS,
   OCTOPUS_INK_CLOUD_DURATION_MS,
-  OCTOPUS_INK_CLOUD_MAX_RADIUS,
   CRT_SCANLINE_INTERVAL,
   CRT_SCANLINE_OPACITY,
   CRT_VIGNETTE_INNER_RADIUS,
@@ -533,9 +533,7 @@ export class WebGPURenderer implements BoidsRenderer {
       if (age < 0 || age > OCTOPUS_INK_CLOUD_DURATION_MS) continue;
       if (inkCloudCount >= INK_CLOUD_MAX_INSTANCES) break;
 
-      const progress = age / OCTOPUS_INK_CLOUD_DURATION_MS;
-      const radius   = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
-      const alpha    = (1 - progress) * 0.92;
+      const { radius, alpha } = computeInkCloudState(age);
 
       const ci = inkCloudCount * INSTANCE_FLOATS;
       this.inkCloudData[ci]     = boid.lastInkX;

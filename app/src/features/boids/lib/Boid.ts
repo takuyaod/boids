@@ -15,6 +15,9 @@ import {
 import { Vec2, magnitude, normalize, limit } from './vec2';
 import type { Predator } from './Predator';
 
+// 未放出状態を示す特殊値（負の大きな値でレンダラーがスミ雲を描画しないことを保証）
+const NEVER_INKED = -Infinity;
+
 export class Boid {
   x: number;
   y: number;
@@ -45,7 +48,7 @@ export class Boid {
     this.species = species ?? getRandomSpecies();
     this.params = SPECIES_PARAMS[this.species];
     this._inkCooldownUntil = 0;
-    this._lastInkedAt = -Infinity; // 未放出状態（レンダラーがスミ雲を描画しないよう負の大きな値を初期値に）
+    this._lastInkedAt = NEVER_INKED; // 未放出状態（レンダラーがスミ雲を描画しないよう負の大きな値を初期値に）
     this._lastInkX    = 0;
     this._lastInkY    = 0;
   }
@@ -147,7 +150,8 @@ export class Boid {
 
     // タコはサメが逃避範囲内のとき、確率とクールダウンを判定してスミを放出する
     // fleeForce はタコが最大速度で逃げている平衡状態で 0 になるため、距離で直接判定する
-    if (this.species === BoidSpecies.Octopus && Math.random() < OCTOPUS_INK_PROBABILITY) {
+    // 判定順: 種チェック → 距離チェック → クールダウンチェック → 確率チェック（不要な Math.random() 呼び出しを削減）
+    if (this.species === BoidSpecies.Octopus) {
       let inkDx = this.x - predator.x;
       if (Math.abs(inkDx) > width / 2) inkDx -= Math.sign(inkDx) * width;
       let inkDy = this.y - predator.y;
@@ -155,7 +159,7 @@ export class Boid {
       const distToPredator = magnitude(inkDx, inkDy);
       if (distToPredator > 0 && distToPredator <= PREDATOR_FLEE_RADIUS) {
         const now = performance.now();
-        if (now >= this._inkCooldownUntil) {
+        if (now >= this._inkCooldownUntil && Math.random() < OCTOPUS_INK_PROBABILITY) {
           predator.confuse(PREDATOR_CONFUSION_DURATION_MS);
           this._inkCooldownUntil = now + OCTOPUS_INK_COOLDOWN_MS;
           // スミ雲エフェクト用に放出位置と時刻を記録

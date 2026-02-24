@@ -19,18 +19,24 @@ function seededRng(seed: number): () => number {
   };
 }
 
+// スミ雲アニメーションの状態を計算する純粋関数（Canvas 2D と WebGPU の両レンダラーで共有）
+// age: スミ放出からの経過時間（ミリ秒）。呼び出し元で有効範囲チェック済みであること
+export function computeInkCloudState(age: number): { radius: number; alpha: number } {
+  const progress = age / OCTOPUS_INK_CLOUD_DURATION_MS;
+  // 最初は素早く広がり後半はゆっくり広がる（√ カーブ）。最小半径 5px を保証
+  const radius = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
+  // 時間とともに透明になる
+  const alpha = (1 - progress) * 0.92;
+  return { radius, alpha };
+}
+
 // タコのスミ雲を放出位置に描画する（ドットパターンで拡大しながらフェードアウト）
 export function drawInkCloud(ctx: CanvasRenderingContext2D, boid: Boid, now: number): void {
   if (boid.species !== BoidSpecies.Octopus) return;
   const age = now - boid.lastInkedAt;
   if (age < 0 || age > OCTOPUS_INK_CLOUD_DURATION_MS) return;
 
-  // progress: 0 → 1（放出直後 → 消滅）
-  const progress = age / OCTOPUS_INK_CLOUD_DURATION_MS;
-  // 最初は素早く広がり後半はゆっくり広がる（√ カーブ）。最小半径 5px を保証
-  const radius = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
-  // 時間とともに透明になる
-  const alpha = (1 - progress) * 0.92;
+  const { radius, alpha } = computeInkCloudState(age);
 
   ctx.save();
 
