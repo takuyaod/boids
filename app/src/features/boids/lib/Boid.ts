@@ -8,6 +8,8 @@ import {
   SPECIES_PARAMS,
   OCTOPUS_INK_PROBABILITY,
   OCTOPUS_INK_COOLDOWN_MS,
+  OCTOPUS_INK_CLOUD_DURATION_MS,
+  OCTOPUS_INK_CLOUD_MAX_RADIUS,
   PREDATOR_CONFUSION_DURATION_MS,
   type SpeciesParams,
 } from './constants';
@@ -148,24 +150,41 @@ export class Boid {
     const cohesion   = this.cohere(boids, effectiveMaxSpeed, effectiveMaxForce);
     const fleeForce  = this.flee(predator, width, height, effectiveMaxSpeed, effectiveMaxForce);
 
-    // タコはサメが逃避範囲内のとき、確率とクールダウンを判定してスミを放出する
-    // fleeForce はタコが最大速度で逃げている平衡状態で 0 になるため、距離で直接判定する
-    // 判定順: 種チェック → 距離チェック → クールダウンチェック → 確率チェック（不要な Math.random() 呼び出しを削減）
+    // タコ固有の処理：スミ放出 + スミ雲当たり判定
     if (this.species === BoidSpecies.Octopus) {
+      const now = performance.now();
+
+      // サメが逃避範囲内のとき、確率とクールダウンを判定してスミを放出する
+      // fleeForce はタコが最大速度で逃げている平衡状態で 0 になるため、距離で直接判定する
+      // 判定順: 距離チェック → クールダウンチェック → 確率チェック（不要な Math.random() 呼び出しを削減）
       let inkDx = this.x - predator.x;
       if (Math.abs(inkDx) > width / 2) inkDx -= Math.sign(inkDx) * width;
       let inkDy = this.y - predator.y;
       if (Math.abs(inkDy) > height / 2) inkDy -= Math.sign(inkDy) * height;
       const distToPredator = magnitude(inkDx, inkDy);
       if (distToPredator > 0 && distToPredator <= PREDATOR_FLEE_RADIUS) {
-        const now = performance.now();
         if (now >= this._inkCooldownUntil && Math.random() < OCTOPUS_INK_PROBABILITY) {
-          predator.confuse(PREDATOR_CONFUSION_DURATION_MS);
           this._inkCooldownUntil = now + OCTOPUS_INK_COOLDOWN_MS;
-          // スミ雲エフェクト用に放出位置と時刻を記録
+          // スミ雲の放出位置と時刻を記録（混乱付与はスミ雲当たり判定に委ねる）
           this._lastInkedAt = now;
           this._lastInkX    = this.x;
           this._lastInkY    = this.y;
+        }
+      }
+
+      // スミ雲当たり判定：サメがスミ雲の範囲内に入ったときのみ混乱状態にする
+      // すでに混乱中のサメには再付与しない（毎フレーム呼ぶと方向がリセットされ続けるため）
+      if (this._lastInkedAt !== NEVER_INKED && !predator.isConfused) {
+        const inkAge = now - this._lastInkedAt;
+        if (inkAge >= 0 && inkAge <= OCTOPUS_INK_CLOUD_DURATION_MS) {
+          // boidRenderer の computeInkCloudState と同じ式でスミ雲の現在半径を算出
+          const progress = inkAge / OCTOPUS_INK_CLOUD_DURATION_MS;
+          const cloudRadius = Math.max(5, OCTOPUS_INK_CLOUD_MAX_RADIUS * Math.sqrt(progress));
+          const dxCloud = predator.x - this._lastInkX;
+          const dyCloud = predator.y - this._lastInkY;
+          if (magnitude(dxCloud, dyCloud) <= cloudRadius) {
+            predator.confuse(PREDATOR_CONFUSION_DURATION_MS);
+          }
         }
       }
     }
