@@ -36,6 +36,8 @@ export class Predator {
   private _confusionAngleChangedAt: number;
   // クラゲ捕食後の再捕食クールダウン終了時刻（0 = クールダウンなし）
   private _jellyfishCooldownUntil: number;
+  // 直前の進行方向角度（vx/vy がゼロのしびれ中でも向きを保持するために使用）
+  private _lastAngle: number;
 
   get satiety(): number {
     return this._satiety;
@@ -44,6 +46,11 @@ export class Predator {
   // 現在しびれ状態かどうか
   get isStunned(): boolean {
     return performance.now() < this._stunnedUntil;
+  }
+
+  // 描画用の進行方向角度（しびれ中は vx/vy がゼロになるため直前の角度を返す）
+  get angle(): number {
+    return this._lastAngle;
   }
 
   // 現在混乱状態かどうか（しびれ中は混乱を無効化）
@@ -75,6 +82,7 @@ export class Predator {
     const angle = Math.random() * Math.PI * 2;
     this.vx = Math.cos(angle) * PREDATOR_SPEED;
     this.vy = Math.sin(angle) * PREDATOR_SPEED;
+    this._lastAngle = angle;
   }
 
   // ラップアラウンドを考慮したBoidへの相対位置ベクトルを返す
@@ -198,6 +206,11 @@ export class Predator {
       const vel = limit(this.vx, this.vy, effectiveSpeed);
       this.vx = vel.x;
       this.vy = vel.y;
+
+      // 速度がゼロでない間は角度を更新する（しびれ中は vx/vy がゼロになるため、しびれ突入直前の角度が _lastAngle に保持される）
+      if (this.vx !== 0 || this.vy !== 0) {
+        this._lastAngle = Math.atan2(this.vy, this.vx);
+      }
 
       this.x += this.vx;
       this.y += this.vy;

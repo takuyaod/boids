@@ -21,8 +21,8 @@ export function drawPredator(ctx: CanvasRenderingContext2D, predator: Predator):
 
   ctx.save();
   ctx.translate(predator.x, predator.y);
-  // 進行方向に向けて回転（Boidと同じ規則）
-  ctx.rotate(Math.atan2(predator.vy, predator.vx) + Math.PI / 2);
+  // 進行方向に向けて回転（しびれ中は vx/vy がゼロになるため angle ゲッターで保持した角度を使用）
+  ctx.rotate(predator.angle + Math.PI / 2);
 
   ctx.shadowBlur  = 20;
   ctx.shadowColor = PREDATOR_COLOR;

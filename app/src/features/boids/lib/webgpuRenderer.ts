@@ -559,7 +559,8 @@ export class WebGPURenderer implements BoidsRenderer {
     {
       const halfSize = PREDATOR_PIXEL_SIZE / 2;
       const [r, g, b] = hexToRgb(PREDATOR_COLOR);
-      const angle = Math.atan2(predator.vy, predator.vx) + Math.PI / 2;
+      // しびれ中は vx/vy がゼロになるため angle ゲッターで保持した角度を使用
+      const angle = predator.angle + Math.PI / 2;
       addSprite(predator.x, predator.y, angle, SHARK_PIXEL_OFFSETS, halfSize, r, g, b);
     }
 
